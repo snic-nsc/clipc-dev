@@ -1,0 +1,14 @@
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.aux
+*.bcf
+*.sh
+*.sty
+*.idx
+*.ilg
+*.ind
+cdeveldoc.pdf
+

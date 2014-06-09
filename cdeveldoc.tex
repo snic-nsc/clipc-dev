@@ -1,0 +1,73 @@
+\documentclass[oneside,12pt]{memoir}
+\def\mychaplineone{Developer notes for}
+\def\mychaplinetwo{CLIPC/ESGF integration}
+%\def\mychaplinethree{And Some More...}
+%\def\mychapbyline{Some crap that came to my mind!}
+%\def\myauthone{Prashanth Dwarakanath}
+%\def\myauthtwo{Hamish Struthers}
+%\def\myauththree{Torgny Fax\'en}
+\def\mypress{NSC and SMHI, Link\"oping Sweden}
+\usepackage{chengi}
+\def\phname{SODA API{ }}
+\setcounter{tocdepth}{2}
+\thispagestyle{empty}
+\titleGM
+\chapterstyle{BlueBox}
+\pagestyle{mystyle}
+\begin{document}
+\frontmatter
+\hypertarget{mytocmarker}
+\tableofcontents
+\mainmatter
+\setcounter{secnumdepth}{2}
+\chapter{Solution Design}
+\section{Overview}
+It is intended to be able to make EURO4M project data present on the MARS system, available for searching and downloading, to ESGF users. Broadly, this involves the following steps
+\begin{enumerate}
+\item Publishing the MARS data on ESGF so that it can be searched and discovered using the ESGF web-frontend.
+\item When the user selects the datasets using the web-frontend, generate
+\begin{itemize}
+\item a message, indicating to the user the special status of the data, that is when it will be available for download, from where etc
+\item a request to the MARS system, for the actual data.
+\end{itemize}
+\item Since the space available on disk is limited, an intelligent algorithm to expire datasets on disk. The system is to know the status of all data from MARS, whether they are currently available on disk or not.
+\end{enumerate}
+\section{Code Modules}
+In order to increase ease of deployment and task distribution, it was discussed and decided during the meeting on June 09 2014, to adopt a split-API approach. This would consist of
+\begin{enumerate}
+\item The MARS API system, developed by ECMWF, with additional functionality of being able to perform GRIB to NETCDF conversions and also ESGF to MARS query conversions.
+\item An ESGF specific \textbf{System for Offline Data Access} (SODA), designed to be used by the web-frontend, to pass on the user requests to a backend data archival access system such as the MARS API. This system would be generic and would allow for the use of systems other than MARS.
+\end{enumerate}
+\section{Breakup of tasks}
+\begin{enumerate}
+\item Create an alternate publisher mechanism, to be able to publish EURO4M data in a manner consistent with other ESGF publications, without the data being present on the disks. Metadata entries into the database etc must be consistent with normal ESGF publications.
+\item Study and document the MARS API system and its features.
+\item Implement GRIB to NETCDF conversion functionality into MARS API.
+\item Implement ESGF to MARS query conversion in MARS API.
+\item Finalize MARS data unit to ESGF facet mapping; what aspects of data are to be available.
+\item Finalize what data needs to be made available
+\item Create a new class of data for offline data which is then communicated to ESG-Search and ESGF Web-frontend. For this new class of data, \phname should be contacted by the Web-FE, in order to query and obtain the data from MARS. 
+\item \phname also to be responsible for providing an appropriate response to the user, regarding information/download URL etc.
+\item \phname to obtain wget script from ESGF and insert checksum values before delivering it to the user.
+\item Web-FE to \phname binding.
+\end{enumerate}
+\section{Issues}
+This is to be a place to list out problems that need to be handled.
+\subsection{\phname notes}
+\begin{enumerate}
+\item Since it wouldn't be possible to generate checksums for MARS data which hasn't been brought onto disk, the checksum would have to be left out of the publication phase. The wget script should be obtained from the ESGF subsystem and then modified by \phname, before it is delivered to the user.
+\end{enumerate}
+\subsection{MARS API notes}
+
+\appendix
+\addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
+\setcounter{secnumdepth}{0}
+\chapter{Jargon and abbrievations}
+\begin{enumerate}
+\item Web-FE : ESGF Web Frontend, provided by the index nodes in the federation.
+\item \phname: Offline Data Access System, developed for ESGF. 
+\end{enumerate}
+\hypertarget{mymarker}{}
+\printindex
+\end{document}
+
