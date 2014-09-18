@@ -1,0 +1,153 @@
+\usepackage{hyperref}
+\usepackage[margin=1in]{geometry}
+\hypersetup{colorlinks=true,linkcolor=black,urlcolor=blue}
+\usepackage{ulem}%for the strikethroughs
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{framed}
+\usepackage{soul} 
+\usepackage{wrapfig}
+\usepackage[english]{babel}
+\usepackage{lipsum}
+\usepackage{blindtext}
+\colorlet{shadecolor}{blue!20}
+\definecolor{myblue}{RGB}{102,178,255} 
+\definecolor{mygreen}{RGB}{170,232,0} 
+\definecolor{myfl}{RGB}{204,255,0}
+\sethlcolor{shadecolor}
+\usepackage{longtable}
+\usepackage{caption}
+\setlength{\parindent}{0mm}
+\DisemulatePackage{moreverb}
+\usepackage{moreverb}
+\usepackage{multicol}
+\newcommand{\mypar}{\par\vspace{2mm}}
+\newcommand{\myopt}{\makebox[2mm][l]{- }{-}}
+\newcommand{\mytilde}{\raisebox{-0.7ex}{\textasciitilde}}
+\newcommand{\redline}[1]{{\sethlcolor{red}{\hl{#1}}}}
+\newcommand{\greenline}[1]{{\sethlcolor{green}{\hl{#1}}}}
+\newcommand{\yellowline}[1]{{\sethlcolor{myfl}{\hl{#1}}}}
+\newcommand{\versionnum}{2014-1.02}
+
+\copypagestyle{mystyle}{headings}
+%\makeoddfoot{mystyle}{\hyperlink{mytocmarker}{Contents}}{\hyperlink{yrhmarker}{You are here!}}{\hyperlink{mymarker}{Index}}
+\makeoddfoot{mystyle}{\hyperlink{mytocmarker}{Contents}}{}{\hyperlink{mymarker}{Index}}
+\usepackage[scaled=.92]{helvet}%. Sans serif - Helvetica
+\usepackage{color,calc}
+
+
+\newsavebox{\ChpNumBox}
+\definecolor{ChapBlue}{rgb}{0.00,0.65,0.65}
+\makeatletter
+\newcommand*{\thickhrulefill}{%
+  \leavevmode\leaders\hrule height 1\p@ \hfill \kern \z@}
+\newcommand*\BuildChpNum[2]{%
+  \begin{tabular}[t]{@{}c@{}}
+    \makebox[0pt][c]{#1\strut} \\[.5ex]
+    \colorbox{ChapBlue}{%
+      \rule[-10em]{0pt}{0pt}%
+      \rule{1ex}{0pt}\color{white}#2\strut
+%\rule{1ex}{0pt}\color{black}#2\strut
+      \rule{1ex}{0pt}}%
+  \end{tabular}}
+\makechapterstyle{BlueBox}{%
+  \renewcommand{\chapnamefont}{\large\scshape}
+  \renewcommand{\chapnumfont}{\Huge\bfseries}
+  \renewcommand{\chaptitlefont}{\raggedright\Huge\bfseries}
+  \setlength{\beforechapskip}{20pt}
+  \setlength{\midchapskip}{26pt}
+  \setlength{\afterchapskip}{40pt}
+  \renewcommand{\printchaptername}{}
+  \renewcommand{\chapternamenum}{}
+  \renewcommand{\printchapternum}{%
+    \sbox{\ChpNumBox}{%
+      \BuildChpNum{\chapnamefont\@chapapp}%
+      {\chapnumfont\thechapter}}}
+  \renewcommand{\printchapternonum}{%
+    \sbox{\ChpNumBox}{%
+      \BuildChpNum{\chapnamefont\vphantom{\@chapapp}}%
+      {\chapnumfont\hphantom{\thechapter}}}}
+  \renewcommand{\afterchapternum}{}
+  \renewcommand{\printchaptertitle}[1]{%                                           
+    \usebox{\ChpNumBox}\hfill
+    \parbox[t]{\hsize-\wd\ChpNumBox-1em}{%
+      \vspace{\midchapskip}%
+      \thickhrulefill\par
+      \chaptitlefont ##1\par}}%
+}
+\makeindex
+\newcommand*{\titleGM}{\begingroup% Gentle Madness
+\newlength{\drop}
+\drop = 0.1\textheight
+\vspace*{\baselineskip}
+\vfill
+  \hbox{%
+  \hspace*{0.1\textwidth}%
+  \rule{1pt}{\textheight}
+  \hspace*{0.05\textwidth}%
+  \parbox[b]{0.75\textwidth}{
+  \vbox{%
+    \vspace{\drop}
+    {\begin{center}\noindent\HUGE\bfseries \mychaplineone
+               \ifdefined\mychaplinetwo
+				\\[0.5\baselineskip]
+				\mychaplinetwo
+				\fi
+				\ifdefined\mychaplinethree
+				\\[0.5\baselineskip]
+				\mychaplinethree\\[1\baselineskip]
+				\else
+				\\[1\baselineskip]
+				\fi
+				\end{center}}
+	\ifdefined\mychapbyline
+    {\Large\itshape \mychapbyline}\\[4\baselineskip]
+	\fi
+    {
+	\ifdefined\myauthone
+	\Large \myauthone \par
+	\fi
+	\ifdefined\myauthtwo
+	\myauthtwo \par
+	\fi
+	\ifdefined\myauththree
+	\myauththree \par
+	\fi
+	}
+	\begin{center}
+	%Version: \textsc{\versionnum} \\
+	\textsc{\today} \\
+	\end{center}
+    \vspace{0.5\textheight}
+    %{\noindent \mypress}\\[\baselineskip]
+    }% end of vbox
+    }% end of parbox
+  }% end of hbox
+\vfill
+\null
+\endgroup}
+%####################################################3
+%\setcounter{tocdepth}{2}
+%\thispagestyle{empty}
+%\titleGM
+%\chapterstyle{BlueBox}
+%%\chapterstyle{ell}
+%\pagestyle{mystyle}
+%\begin{document}
+%\frontmatter
+%\hypertarget{mytocmarker}
+%\tableofcontents
+%\mainmatter
+%\setcounter{secnumdepth}{2}
+%\input{nsc-specifics.tex}
+%\input{main-matter.tex}
+%\input{more-nsc-specifics.tex}
+%%\input{operations-manual.tex}
+%\input{changelog.tex}
+%\appendix
+%\addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
+%\setcounter{secnumdepth}{0}
+%\input{nsc-appendix.tex}
+%\hypertarget{mymarker}{}
+%\printindex
+%\end{document}
