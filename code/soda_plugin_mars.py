@@ -1,4 +1,4 @@
-# USAGE: 
+# USAGE:
 #
 # import soda_plugin_mars
 # esg_query = { 'VariableName'            : 'tasmin',
@@ -341,7 +341,7 @@ class MarsQueryFrom(object):
         elif self.esgf_query['VariableName'] == 'tasmin':
             return '0600'
         raise AssertionError
-        
+
     def _step(self):
         return '0'
 
@@ -358,7 +358,7 @@ class MarsQueryFrom(object):
 
     def _class(self):
         return 're'
-    
+
     def _type(self):
         return 'fc'
 
@@ -471,7 +471,7 @@ def offline_content_id(esgf_request, stderr=None):
     assert ret is not None
     if ret < 0:
         raise SodaException("%s failed, ret=%d" % args, ret);
-    
+
     return str(crc_sum)
 
 
