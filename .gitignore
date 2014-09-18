@@ -10,5 +10,5 @@
 *.idx
 *.ilg
 *.ind
+*.pyc
 cdeveldoc.pdf
-
