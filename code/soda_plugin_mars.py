@@ -478,6 +478,8 @@ def offline_content_id(esgf_request, stderr=None):
 def fetch(esgf_request, result_path, stdout=None, stderr=None):
     """Retrieve the offline data into result_path for a ESGF query.
 
+    The content of result_path must be in NetCDF-format.
+
     This method will fetch new data every time it is called. The
     existence of result_path can be used by the caller to determine if
     the file is already prefetched or not. offline_content_id should
@@ -495,7 +497,7 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
     Args:
         esgf_request: a type dict(str, str) containing ESGF keywords.
         result_path: a type str where the resulting data will be
-            retrieved into.
+            retrieved into (must be a valid NetCDF file).
         stdout: type int or type file, an optional file descriptor or
             file where output will be sent during the fetch (used as
             stdout in subprocess.Popen)
@@ -506,6 +508,7 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
         None
     Raises:
         SodaException: A critical error occurred.
+
     """
     assert type(esgf_request) is dict
     assert result_path is None or type(result_path) is str
