@@ -501,7 +501,7 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
             retrieved into (must be a valid NetCDF file).
         stdout: type int or type file, an optional file descriptor or
             file where output will be sent during the fetch (used as
-            stdout in subprocess.Popen)
+            stdout in subprocess.Popen).
         stderr: type int or type file, an optional file descriptor or
             file where error will be sent during the fetch (used as
             stderr in subprocess.Popen).
