@@ -275,6 +275,7 @@ class MarsQueryFrom(object):
 
     def __init__(self, esgf_query):
         assert type(esgf_query) is dict
+        assert all(type(x) is str for x in esgf_query.keys())
         assert all(type(x) is str for x in esgf_query.values())
         assert 'VariableName' in esgf_query
         assert 'Domain' in esgf_query
@@ -511,6 +512,8 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
 
     """
     assert type(esgf_request) is dict
+    assert all(type(x) is str for x in esgf_request.keys())
+    assert all(type(x) is str for x in esgf_request.values())
     assert result_path is None or type(result_path) is str
     assert stdout is None or type(stdout) is int or type(stdout) is file
     assert stderr is None or type(stderr) is int or type(stderr) is file
