@@ -536,31 +536,3 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
     finally:
         if os.path.exists(tempName):
             os.unlink(tempName)
-
-
-def is_providing(esgf_request):
-    """Return if the given esgf_request is handled by this plugin or
-    not.
-
-    If this returns True, a later call to fetch or
-    offline_content_id is expected to execute OK.
-
-    If this returns False, a later call to fetch or
-    offline_content_id is expected to raise a SodaException.
-
-    The implementation is not required to actually query the offline
-    storage system, it just needs to be able to map the esgf_request
-    to a proper query that is expected to return offline content.
-
-    Args:
-        esgf_request: a type dict(str, str) containing ESGF keywords.
-    Returns:
-        a type bool indicating if esgf_query is handled by this plugin
-        or not.
-    """
-    assert type(esgf_request) is dict
-
-    return _is_a_tasmin_EUR_05_SMHI_HIRLAM_reanalysis_r1i1p1_SMHI_MESAN_v1_day_19890101(esgf_request) or \
-           _is_a_tasmax_EUR_05_SMHI_HIRLAM_reanalysis_r1i1p1_SMHI_MESAN_v1_day(esgf_request)          or \
-           _is_a_pr_EUR_05_SMHI_HIRLAM_reanalysis_r1i1p1_SMHI_MESAN_v1_day(esgf_request)              or \
-           _is_a_tas_EUR_05_SMHI_HIRLAM_reanalysis_r1i1p1_SMHI_MESAN_v1_day(esgf_request)
