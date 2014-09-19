@@ -544,11 +544,11 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
 def netcdf_info(esgf_request, keys, stdout=None, stderr=None):
     """Return the NetCDF metadata for the corresponding ESGF query.
 
-    This information is required by the ESGF Publisher before being
-    able to serve any content. It is required as an initial step for
-    all data that is being published. The idea is that the SODA plugin
-    should not have to read in all the published content in order to
-    provide this information.
+    This information is required by the ESGF Publisher in an initial
+    step before being able to serve the NetCDF file for
+    esgf_request. The idea is that the SODA plugin should not have to
+    read in all the published content in order to provide this
+    information.
 
     Args:
         esgf_request: a type dict(str, str) containing ESGF keywords.
@@ -561,8 +561,8 @@ def netcdf_info(esgf_request, keys, stdout=None, stderr=None):
             file where error will be sent during the fetch (used as
             stderr in subprocess.Popen).
     Returns:
-        A type dict(str, str) mapping the value of keys to their
-        NetCDF metadata.
+        A type dict(str, str) mapping the value of keys to the
+        corresponding NetCDF metadata for esgf_request.
     Raises:
         SodaException: A critical error occurred.
 
