@@ -539,3 +539,40 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
     finally:
         if os.path.exists(tempName):
             os.unlink(tempName)
+
+
+def netcdf_info(esgf_request, keys, stdout=None, stderr=None):
+    """Return the NetCDF metadata for the corresponding ESGF query.
+
+    This information is required by the ESGF Publisher before being
+    able to serve any content. It is required as an initial step for
+    all data that is being published. The idea is that the SODA plugin
+    should not have to read in all the published content in order to
+    provide this information.
+
+    Args:
+        esgf_request: a type dict(str, str) containing ESGF keywords.
+        keys: a type list(str) containing the expected keys to return
+            values for.
+        stdout: type int or type file, an optional file descriptor or
+            file where output will be sent during the fetch (used as
+            stdout in subprocess.Popen).
+        stderr: type int or type file, an optional file descriptor or
+            file where error will be sent during the fetch (used as
+            stderr in subprocess.Popen).
+    Returns:
+        A type dict(str, str) mapping the value of keys to their
+        NetCDF metadata.
+    Raises:
+        SodaException: A critical error occurred.
+
+    """
+    assert type(esgf_request) is dict
+    assert all(type(x) is str for x in esgf_request.keys())
+    assert all(type(x) is str for x in esgf_request.values())
+    assert type(keys) is list
+    assert all(type(x) is str for x in keys)
+    assert stdout is None or type(stdout) is int or type(stdout) is file
+    assert stderr is None or type(stderr) is int or type(stderr) is file
+
+    raise AssertionError("FIXME: not implemented")
