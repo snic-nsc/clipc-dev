@@ -541,14 +541,13 @@ def fetch(esgf_request, result_path, stdout=None, stderr=None):
             os.unlink(tempName)
 
 
-def netcdf_info(esgf_request, keys, stdout=None, stderr=None):
-    """Return the NetCDF metadata for the corresponding ESGF query.
+def metadata_info(esgf_request, keys, stdout=None, stderr=None):
+    """Return metadata required for publication.
 
-    This information is required by the ESGF Publisher in an initial
-    step before being able to serve the NetCDF file for
-    esgf_request. The idea is that the SODA plugin should not have to
-    read in all the published content in order to provide this
-    information.
+    This information is required by SODA in an initial step before
+    being able to serve the NetCDF file for esgf_request. The idea is
+    that the SODA plugin should not have to read in all the published
+    content in order to provide this information.
 
     Args:
         esgf_request: a type dict(str, str) containing ESGF keywords.
