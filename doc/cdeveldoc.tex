@@ -9,7 +9,7 @@
 \def\mypress{NSC and SMHI, Link\"oping Sweden}
 \usepackage{chengi}
 \def\phname{SODA API{ }}
-\def\vernum{September 16, 2014}
+\def\vernum{September 18, 2014}
 \setcounter{tocdepth}{2}
 \thispagestyle{empty}
 \titleGM
@@ -23,75 +23,68 @@
 \setcounter{secnumdepth}{2}
 \chapter{Solution Design}
 \section{Overview}
-It is intended to be able to make EURO4M project data present on the MARS system, available for searching and downloading, to ESGF users. Broadly, this involves the following steps
+This document describes work to be done under the \textbf{CLIPC FP7 EU project}, in the \textbf{Climate Data Access Work Package (WP5)}, listed under task \textbf{T5.4 (Dynamic Tape-archive extraction and post-processing)}. The deliverable of this exercise is to be able to develop a generic system that would make it possible to  make data present on different kinds of offline tape systems, available for searching and retrieval, to ESGF users. This work targets the publication of data from the EURO4M project present on teh MARS system at SMHI-LUE as a demonstrator, as specified by task \textbf{T5.4}. This system should be customizable for use by other data centers with other offline systems, such as UK's Met Office. Broadly, this involves the following steps.
 \begin{enumerate}
-\item Publishing the MARS data on ESGF so that it can be searched and discovered using the ESGF web-frontend.
-\item When the user selects the datasets using the web-frontend, generate
+\item Publishing the offline data on ESGF so that it can be searched and discovered using the ESGF web-frontend.
+\item Integrate the ESGF web-frontend to the new service in a manner such that
 \begin{itemize}
-\item a message, indicating to the user the special status of the data, that is when it will be available for download, from where etc
-\item a request to the MARS system, for the actual data.
+\item When a user requests for offline data, it is determined whether the data has been cached from a previous query; if cached, the user is immediately provided a normal ESGF wget script with the download URLs.
+\item If the data is not present in the cache, initiating a data fetch request to the backend tape system, to retrieve the requested data while providing the user a script that could be executed to query the status of the operation, and to download the finalwget script, when the data is available on disk.
 \end{itemize}
-\item Since the space available on disk is limited, an intelligent algorithm to expire datasets on disk. The system is to know the status of all data from MARS, whether they are currently available on disk or not.
+\item Since the space available on disk is most likely limited, an intelligent algorithm to expire datasets on disk. The system should be aware of the status of all datasets present on the tape system which have been published on ESGF, whether they are currently available on disk or not.
 \end{enumerate}
 \section{Code Modules}
-In order to increase ease of deployment and task distribution, it was discussed and decided during the meeting on June 09 2014, to adopt a split-API approach. This was further refined upon, following some brainstorming that we did during the IS-ENES GA meet. This would consist of
+Initial design was brainstormed during the IS-ENES2 GA meet and further modified over subsequent meetings. This would consist of
 \begin{enumerate}
-\item The ECMWF API system, developed by ECMWF, with additional functionality of being able to perform GRIB to NETCDF conversions.
- and also ESGF to MARS query conversions.
-\item An ESGF specific \textbf{System for Offline Data Access} (SODA) API, designed to be used by the web-frontend and/or user-executable scripts, to pass on the user requests to a plugin that interacts with a backend data archival system.
-This system would be generic and would allow for the use of plugins for systems other than MARS.
-\item MARS Plugin, to be able to do ESGF to MARS query conversions and perform other interactions with the ECMWF API. It would be aware of the MARS vocabulary and would communicate with the SODA API.
+\item An ESGF specific \textbf{System for Offline Data Access} (SODA) REST API, designed to be used by the web-frontend and/or user-executable scripts, to pass on the user requests to a plugin that interacts with a backend data archival system. This system would be generic and would allow for the use of plugins for systems other than MARS and would be the base part of the system.
+\item A plugin, to be able to do ESGF to backend system  query conversions and perform other interactions with the backend system. The plugin is the customizable component and can be written to work with different backend systems. It would be up to the plugin developer to decide how to interact with the actual underlying system, i.e. whether to use a binary client, or another API, to do the actual communication with the backend system. 
+In our pilot implementation, this would be a MARS Plugin for SODA. It would be aware of the MARS vocabulary and would be used by the \phname to communicate with MARS.
 \end{enumerate}
 \section{Limitations}
-\yellowline{The data discovery process in ESGF is based on data which is already present and published; this means that the dynamic nature of MARS to generate customized data units cannot be exploited. What is possible is publishing a few popular combinations of requirements.}
+The data discovery process in ESGF is based on data which is already present and published; this means that the dynamic nature of MARS to generate customized data units cannot be exploited. What is possible is publishing a few popular combinations of requirements.
 \section{Breakup of tasks}
 \begin{enumerate}
-\item Create an alternate publisher mechanism, to be able to publish EURO4M data in a manner consistent with other ESGF publications, without the data being present on the disks. Metadata entries into the database etc must be consistent with normal ESGF publications.
-\item Study and document the ECMWF API system and its features.
-\item Implement GRIB to NETCDF conversion functionality into  ECMWF API.
-\item Implement ESGF to MARS query conversion in MARS Plugin.
-\item Implement MARS metadata query capability in ECMWF API.
+\item Create an alternate publisher mechanism, to be able to publish offline data in a manner consistent with other ESGF publications, without the data being present on the disks. Metadata entries into the database etc must be consistent with normal ESGF publications.
+\item Implement GRIB to NETCDF conversion functionality into the MARS plugin.
+\item Implement ESGF to MARS query conversion in the MARS plugin
 \item Finalize MARS data unit to ESGF facet mapping; what aspects of data are to be available.
 \item Finalize what data needs to be made available
-\item Create a new class of data for offline data which is then communicated to ESG-Search and ESGF Web-frontend. For this new class of data, \phname should be contacted by the Web-FE, in order to query and obtain the data from MARS. 
-\item \phname also to be responsible for providing an appropriate response to the user, regarding information/download URL etc.
-\item \phname generate user-excutable script (which may be based on the wget-template)
-\item Web-FE to \phname binding.
+\item Ensure that the ESG-SEARCH and ESGF Web-Fronted are aware of th data's offline status and possible use this to provide a `Show offline datasets' option to users.
+\item ESGF-SODA integration to service requests for these offline datasets.
+\item Prior to publication of EURO4M data on ESGF, there is a need to define the DRS and data-attribute to ESGF Search facet mapping. This document needs to serve the
+role of Martin Juckes' `CORDEX: ESGF Search Facet Mappings' document.
 \end{enumerate}
+
 \section{System Architecture}
 Diagram of the system to go here...\\
-The system is divided into three components: The SODA API, the MARS plugin and the ECMWF API. \\
 \subsection{Use Case Diagram}
 Use case diagram goes here...
 
 \section{Issues and questions}
 This is to be a place to list out problems that need to be handled.
 \begin{enumerate}
-\item \yellowline{Authorization in addition to authentication. Should we run a separate attribute service, like we do for CORDEX?}
-\item \yellowline{Since we have to massively modify the delivery mechanism, we might as well fetch the data directly from MARS, instead of ever having it on the datanode, but for one thing, the expiration logic etc is only available for data MARS manages, not the converted data, which is our hack. Secondly, the access control for the data would be provided by ESGF, if we use the ESGF delivery mechanism, which is a solid case for having the data served from the ESGF datanode.}
+\item Authorization in addition to authentication. Should we run a separate attribute service, like we do for CORDEX?
 \end{enumerate}
 \subsection{Web-Fe/CoG integration notes}
 \begin{enumerate}
-\item \yellowline{There are two possible approaches, for the manner in which the user interacts with SODA API.}
+\item There are two possible approaches, for the manner in which the user's experience changes, based on whether the queried data exists in the online disk cache ornot.
 \begin{enumerate}
-\item The Web-Fe/CoG generates a script from a custom template, with the selected files. When the user runs this script, the script interacts with the SODA API and provides further information, such as status, download links etc.
-\item The Web-Fe/CoG interacts with the SODA API and uses this information on the web-frontend itself, and/or in the creation of the download script.
+\item The Web-Fe/CoG interacts with \phname for the requested data. If available online, it produces the wget script exactly as it would for normal online data.
+\item If the data is not available on the disk cache, SODA’s response with a `please wait and retry' message is echoed to the user.
 \end{enumerate}
-\item \yellowline{Mixing of online and offline search results; It should be possible to have a mix of the two. If we need this, our custom script must offer 100\% functionality of the existing wget-template, with additional SODA specific features.}
+\item Mixing of online and offline search results in the datacart can lead to complications, so it should simply not be possible to mix the two types, in one data cart session.
 \end{enumerate}
 \subsection{\phname notes}
 \begin{enumerate}
 \item \phname to be responsible for expiring staged data from disk; LRU?
-\item \phname to maintain status of data; STAGED, OFFLINE, STAGING. 
-\item Prior to publication of EURO4M data on ESGF, there is a need to define the DRS and data-attribute to ESGF Search facet mapping. This document needs to serve the role of Martin Juckes' `CORDEX: ESGF Search Facet Mappings' document. SMHI to get back with the `who', 'how' and 'by when' for this task.
-\item Since it wouldn't be possible to generate checksums for MARS data which hasn't been brought onto disk, the checksum would have to be left out of the publication phase. The wget script should be obtained from the ESGF subsystem and then modified by \phname, before it is delivered to the user.
+\item \phname to maintain status of data; STAGED, OFFLINE, STAGING.
+\item \phname to support manual purging of cached data.
+\item Since it wouldn't be possible to generate checksums for MARS data which hasn't been
+brought onto disk, the checksum would have to be left out of the publication phase.
+The wget script should be obtained from the ESGF subsystem and then modiﬁed by \phname, before it is delivered to the user.
 \item Authenticated user v/s unauthenticated user: what operations need to be restricted to authenticated users? For example, staging requests should only be possible for authenticated users while status query could be allowed for all.
 \end{enumerate}
 
-\subsection{ECMWF API notes}
-\begin{enumerate}
-\item Implement MARS metadata query capability in ECMWF API.
-\end{enumerate}
 \subsection{MARS Plugin notes}
 \begin{enumerate}
 \item The ESGF search facet to MARS search facet/query conversion to be handled by the MARS plugin.
@@ -103,12 +96,11 @@ This is to be a place to list out problems that need to be handled.
 \setcounter{secnumdepth}{0}
 \chapter{Jargon and abbrievations}
 \begin{enumerate}
+\item CLIPC: Climate Information Platform for Copernicus, EU project.
 \item Web-FE : ESGF Web Frontend, provided by the index nodes in the federation.
-\item \phname: Offline Data Access System, developed for ESGF.
-\item MARS Plugin: Bridge code to interact with SODA API and the MARS API.
-\item ECMWF API: API developed by ECMWF, to interact with the MARS system. 
+\item \phname: System for Offline Data Access, developed for ESGF-CLIPC integration.
+\item MARS Plugin: Bridge code to interact with \phname and the MARS system.
 \end{enumerate}
 \hypertarget{mymarker}{}
 \printindex
 \end{document}
-
