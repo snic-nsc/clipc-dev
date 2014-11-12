@@ -9,7 +9,7 @@
 \def\mypress{NSC and SMHI, Link\"oping Sweden}
 \usepackage{chengi}
 \def\phname{SODA API{ }}
-\def\vernum{September 18, 2014}
+\def\vernum{November 12, 2014}
 \setcounter{tocdepth}{2}
 \thispagestyle{empty}
 \titleGM
@@ -57,6 +57,16 @@ role of Martin Juckes' `CORDEX: ESGF Search Facet Mappings' document.
 
 \section{System Architecture}
 Diagram of the system to go here...\\
+\subsection{Components}
+\begin{enumerate}
+\item SODA WPS: interacted with by ESGF WebFE/CoG and SODA-generated wget script.
+\item Backend Plugin aka MARS plugin
+\item SODA Publisher: script to obtain data questionnaire from SODA WPS and perform insertion into ESGF database and other tasks to complete `ESGF publication'.
+\item SODA Scheduler: to schedule publication requests and downloads requests.
+\item SODA Messenger: to email notifications
+\item SODA file server: for online hosting of requested files.
+\end{enumerate}
+
 \subsection{Use Case Diagram}
 Use case diagram goes here...
 
@@ -95,16 +105,40 @@ The wget script should be obtained from the ESGF subsystem and then modiﬁed by
 \item Querying the backend for the required values and constructing the filled in questionairre.
 \item Constructing the questionnaire with values provided by user.
 \end{enumerate}
-\end{enumerate}
-
-\section{Data download workflow}
-\section{Data publication workflow}
-The plugin would be aware of the following:
+\item The plugin would be aware of the following:
 \begin{enumerate}
 \item Project specific DRS.
 \item Project specific custom key/value pairs, for instance attributes which are common to all datasets belonging to a project which is NOT available from the DRS.
 \end{enumerate}
-When offline data is to be published, a data questionnaire needs to be filled out. 
+\end{enumerate}
+
+\section{Data download workflow}
+\subsection{User}
+\begin{enumerate}
+\item User searches for using ESGF Search from WebFE/CoG and adds to datacart.
+\item WebFE/CoG requests data retrieval from SODA WPS and prints out notification informing user that they'll get an email when the data is ready for download. \item The WebFE also provides user a SODA service URL (SURL) that he can use to get the status or download final SODA-generated wget script, when data is ready.
+\item User gets email notification and SODA-generated wget script when data is made available online.
+\item Script performs ESGF-style authentication and user executes script and gets data.
+\end{enumerate}
+\subsection{System}
+\begin{enumerate}
+\item WebFE/CoG interacts with SODA with list of datasets to be retrieved.
+\item SODA to only allow authorized requests for data retrieval from the WebFE/CoG itself.
+\item SODA submits request to scheduler and returns SODA service URL (SURL) to WebFE  
+\item Scheduler looks up availability status prior to scheduling fetch operation
+\item Scheduler to handle overlapping requests.
+\end{enumerate}
+\section{Data publication workflow}
+\begin{enumerate}
+\item Prior to publication of offline data, a limiting constraint that would define the boundaries for the publication is specified. 
+\item The limiting constraint could be a set of search facet like constraints; project=foo \& model=bar \& start\_date=xxx \& end\_date=yyy etc.
+\item When offline data is to be published, a data questionnaire needs to be filled out. This questionnaire would contain all of the information required to be inserted into the postgresql database etc, that the standard ESGF publication involves. 
+\item The plugin would perform sanity checks on the constraints specified by the user against the DRS and invalidate incorrect requests.
+\item The limiting constraints would be used by the plugin, if it needs to query the backend for the required metadata to complete the questionnaire.
+\item The plugin would also implement its own publisher, based on the ESGF publisher, which uses the data from the questionnaire to perform an ESGF publication.
+\item Since the publication is done when the data isn't physically on online storage, the checksum information and size wouldn't be entered into the database. Where these are mandatory, placeholder values will be entered.
+\item When a subsequent download request is processed, this information is `lazily' computed and the database updated. 
+\end{enumerate}
 \appendix
 \addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
 \setcounter{secnumdepth}{0}
