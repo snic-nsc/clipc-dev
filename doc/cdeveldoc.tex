@@ -89,8 +89,22 @@ The wget script should be obtained from the ESGF subsystem and then modiﬁed by
 \begin{enumerate}
 \item The ESGF search facet to MARS search facet/query conversion to be handled by the MARS plugin.
 \item MARS plugin to be responsible for GRIB-NETCDF conversion.
+\item This should be responsible for filling out the data questionnaire.
+\item Data questionnaire should support both of the following cases:
+\begin{enumerate}
+\item Querying the backend for the required values and constructing the filled in questionairre.
+\item Constructing the questionnaire with values provided by user.
+\end{enumerate}
 \end{enumerate}
 
+\section{Data download workflow}
+\section{Data publication workflow}
+The plugin would be aware of the following:
+\begin{enumerate}
+\item Project specific DRS.
+\item Project specific custom key/value pairs, for instance attributes which are common to all datasets belonging to a project which is NOT available from the DRS.
+\end{enumerate}
+When offline data is to be published, a data questionnaire needs to be filled out. 
 \appendix
 \addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
 \setcounter{secnumdepth}{0}
