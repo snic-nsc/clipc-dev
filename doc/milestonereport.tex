@@ -1,0 +1,91 @@
+\documentclass[10pt,one-side,a4paper]{memoir}
+\pagestyle{empty}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+%\renewcommand{\chaptername}{}
+%\renewcommand{\thechapter}{}
+\let\footruleskip\undefined
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+\lhead{\textsf{MS23: Milestone Report for Task 5.4 (Dynamic Tape-archive extraction and post-processing)}}
+\rhead{\thepage}
+\setsecnumdepth{subsubsection}
+\setcounter{tocdepth}{3}
+\renewcommand*\thesection{\arabic{section}}
+\begin{document}
+\setlength{\parindent}{0mm}
+\begin{center}
+\Huge{\textbf{MS23: Milestone Report for Task 5.4 \\(Dynamic Tape-archive extraction and post-processing)}}
+\end{center}
+The task will be targeting access to tape archive datasets from the MARS tape archive at LIU as well as at the MOHC tape archive at the UK MetOffice. 
+\section{MARS tape archive at LIU}
+\subsection{Organizations}
+LIU/NSC \& SMHI
+\subsection{Progress till date}
+\begin{enumerate}
+\item The system to be developed for the purpose of publishing offline data from MARS onto ESGF and enabling their retrieval has been titled `System for Offline Data Access (SODA)'. 
+\item The architecture diagram for SODA has been created and distribution of tasks completed. 
+\item SODA is a system based on the Web Processing Service (WPS) with support for plugins, to allow use of backend systems other than MARS.  
+\item The components of SODA would be the following:
+\begin{enumerate}
+\item SODA WPS: interacted with by ESGF WebFE/CoG and SODA-generated wget script.
+\item Backend Plugin aka MARS plugin
+\item SODA Publisher: script to obtain data questionnaire from SODA WPS and perform insertion into ESGF database and other tasks to complete `ESGF publication'.
+\item SODA Scheduler: to schedule publication requests and downloads requests.
+\item SODA Messenger: to email notifications
+\item SODA file server: for online hosting of requested files.
+\end{enumerate}
+
+\item SODA has been discussed and presented at three workshops:
+\begin{enumerate}
+\item Workshop at ECMWF, Reading UK (CLIPC WP5 workshop)
+\item \href{http://www.clipc.eu/portal-design-workshop/content=0055_000000}{Workshop at KNMI, Netherlands (Workshop on design of scientific portals)}
+\item \href{http://esgf.llnl.gov/facetoface.html}{ESGF Face2Face meeting, Livermore CA, USA}
+\end{enumerate}
+\item Feedback was received from the above presentations and incorporated into design revisions.
+\item A common Data Reference Syntax (DRS) and mapping document for EURO4M data is being worked upon by SMHI.
+\item Communication has been initiated with ESGF developers to work out the integration of SODA with ESGF.
+\item Effort has been put into stuyding the process of GRIB to NetCDF conversion, and the work has been presented at the \href{http://www.clipc.eu/portal-design-workshop/content=0055_000000}{`Closing the GRIB/NetCDF gap' workshop at ECMWF}
+\end{enumerate}
+\subsection{Future work}
+Work will now move to actual development of code modules. A skeletonized  version of the implementation is planned to allow for iterative development and testing of components in a sandbox-like environment. Once code is ready, help would be sought to integrate SODA with ESGF.
+
+\subsection{Attachments}
+Please refer to the following documents for additional information:
+\begin{enumerate}
+\item System for Offline Data Access (SODA), a presentation on SODA.
+\item Developer notes for CLIPC/ESGF integration
+\end{enumerate}
+%\newpage
+%\begin{center}
+%\Huge{\textbf{MS23: Milestone Report by Mark Elkington \\(For reference)}}
+%\end{center}
+%\begin{center}
+%\Huge{\textbf{MS23: Milestone Report for Task 5.4 \\(Dynamic Tape-archive extraction and post-processing)}}
+%\end{center}
+\section{MOHC tape archive at the UK MetOffice}
+\subsection{Organizations}
+MOHC \& STFC
+\subsection{Progress till date}
+MOHC attended the work package workshop in Reading during September. Since then MOHC and BADC staff have held regular
+meetings to establish an architectural design for a BADC interface to climate data held in the MOHC tape archive. The
+proposed interface will be based on archives at BADC and MOHC using a common Data Reference Syntax (DRS) access
+mechanism that allows flexibility for project specific referencing. This will allow the interface to be used for
+routine delivery of climate data for model intercomparison projects through archive synchronisation and ultimately
+remote access to approved sections of the MOHC archive for users of the BADC.
+\par \vspace{2mm}
+The use of a common DRS structure will support long-term integration into the ESGF infrastructure as this matures. The
+proposed architectural solution deals with common archive lifecycle scenarios including upload, redaction, version
+update etc. JMS messaging will be used to notify the BADC systems of changes in the MOHC archive status. MOHC will
+develop a wrapper around its general purpose archive access tool to support BADC access.
+\par \vspace{2mm}
+The architectural design for the interface has been documented and accepted by both BADC and MOHC.
+\subsection{Future work}
+Work will now move to the detailed design and implementation work for the archive interface. This will include early
+testing of the technologies identified in the architectural design. The implementation work will be undertaken by a
+joint BADC and MOHC development team. The interface will be released in a phased process over the next 12 months with
+increasing functionality at each release.
+ 
+\end{document}

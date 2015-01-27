@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><project name="ClipC-SODA" company="" webLink="http://" view-date="2013-01-01" view-index="0" gantt-divider-location="428" resource-divider-location="300" version="2.0" locale="en_IN">
+    <description/>
+    <view zooming-state="default:9" id="gantt-chart">
+        <field id="tpd3" name="Name" width="53" order="0"/>
+        <field id="tpd4" name="Begin date" width="23" order="1"/>
+        <field id="tpd5" name="End date" width="23" order="2"/>
+    </view>
+    <view id="resource-table">
+        <field id="0" name="Name" width="56" order="0"/>
+        <field id="1" name="Default role" width="43" order="1"/>
+    </view>
+    <!-- -->
+    <calendars>
+        <day-types>
+            <day-type id="0"/>
+            <day-type id="1"/>
+            <calendar id="1" name="default">
+                <default-week sun="1" mon="0" tue="0" wed="0" thu="0" fri="0" sat="1"/>
+                <only-show-weekends value="false"/>
+                <overriden-day-types/>
+                <days/>
+            </calendar>
+        </day-types>
+        <date year="1" month="12" date="26"/>
+        <date year="2005" month="3" date="24"/>
+        <date year="2005" month="3" date="25"/>
+        <date year="2005" month="3" date="28"/>
+        <date year="2005" month="5" date="5"/>
+        <date year="2005" month="5" date="16"/>
+        <date year="2005" month="5" date="17"/>
+        <date year="2006" month="4" date="13"/>
+        <date year="2006" month="4" date="14"/>
+        <date year="2006" month="4" date="17"/>
+        <date year="2006" month="5" date="1"/>
+        <date year="2006" month="5" date="17"/>
+        <date year="2006" month="5" date="25"/>
+        <date year="2006" month="6" date="5"/>
+        <date year="2006" month="12" date="25"/>
+        <date year="2007" month="1" date="1"/>
+        <date year="2007" month="4" date="5"/>
+        <date year="2007" month="4" date="6"/>
+        <date year="2007" month="4" date="9"/>
+        <date year="2007" month="5" date="1"/>
+        <date year="2007" month="5" date="17"/>
+        <date year="2007" month="5" date="28"/>
+        <date year="2007" month="12" date="25"/>
+        <date year="2008" month="1" date="1"/>
+        <date year="2008" month="3" date="20"/>
+        <date year="2008" month="3" date="21"/>
+        <date year="2008" month="3" date="24"/>
+        <date year="2008" month="5" date="1"/>
+        <date year="2008" month="5" date="12"/>
+        <date year="2008" month="12" date="25"/>
+        <date year="" month="12" date="26"/>
+    </calendars>
+    <tasks empty-milestones="true">
+        <taskproperties>
+            <taskproperty id="tpd0" name="type" type="default" valuetype="icon"/>
+            <taskproperty id="tpd1" name="priority" type="default" valuetype="icon"/>
+            <taskproperty id="tpd2" name="info" type="default" valuetype="icon"/>
+            <taskproperty id="tpd3" name="name" type="default" valuetype="text"/>
+            <taskproperty id="tpd4" name="begindate" type="default" valuetype="date"/>
+            <taskproperty id="tpd5" name="enddate" type="default" valuetype="date"/>
+            <taskproperty id="tpd6" name="duration" type="default" valuetype="int"/>
+            <taskproperty id="tpd7" name="completion" type="default" valuetype="int"/>
+            <taskproperty id="tpd8" name="coordinator" type="default" valuetype="text"/>
+            <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
+        </taskproperties>
+        <task id="0" name="DRS_and_config_checker" color="#8cb6ce" meeting="false" start="2015-01-26" duration="3" complete="0" expand="true"/>
+        <task id="2" name="Scheduler_prework" color="#8cb6ce" meeting="false" start="2015-01-20" duration="1" complete="0" expand="true">
+            <notes><![CDATA[Reading up about possible solutions, evaluating them.
+]]></notes>
+        </task>
+        <task id="4" name="SODA_Scheduler" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true"/>
+        <task id="5" name="Query_converter" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[An ESGF to MARS query converter.
+This would use DRS and facet mapping present in configuration file to covert ESGF Search queries to corresponding MARS queries for data, in case of download workflow, and metadata, in case of publication workflow.]]></notes>
+        </task>
+        <task id="7" name="SODA_config_file_development" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[1. Configuration file format, for SODA and Plugin.
+2. Configuration file parser.]]></notes>
+        </task>
+        <task id="20" name="MARS metadata/data retrieval tool" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[Tool/script to query MARS for metadata and/or data itself for queries supplied to it.  Used for debugging issues.  This would be incorporated into the plugin. ]]></notes>
+        </task>
+        <task id="22" name="Data_questionnaire_maker" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[This will use retrieved metadata and DRS to create data questionnaire, which would be used by SODA publisher script to perform SOLR publications.]]></notes>
+        </task>
+        <task id="23" name="Solr_publish_and_unpublish_tool" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[External to SODA, it's a script that'll perform SOLR publishes and unpublishes. Used for testing and would later be incorporated into the SODA publisher script.]]></notes>
+        </task>
+        <task id="26" name="SODA_WPS_service" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[WPS service for publication and retrieval. 
+Interactions by Cog (for scheduling) and the wget script (for auth, prior to download?)]]></notes>
+        </task>
+        <task id="28" name="HTTP_fileserver" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[With ESGF-style authentication.  For serving online data and serving status message page to user.
+]]></notes>
+        </task>
+        <task id="30" name="SODA_database_design" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true"/>
+        <task id="31" name="SODA_database_implementation" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true"/>
+        <task id="32" name="Plugin_design_and_integration" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[Designing the plugin system.]]></notes>
+        </task>
+        <task id="34" name="SODA_plugin_integration" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[Support for external plugins;
+A plugin contract.]]></notes>
+        </task>
+        <task id="37" name="Development_env_setup" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true"/>
+        <task id="9" name="GRIB_NetCDF_converter" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[Gather know-how for GRIB to NetCDF coversion and code in into the backend plugin.]]></notes>
+        </task>
+        <task id="11" name="GRIB_NetCDF_conversion-howto" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true"/>
+        <task id="14" name="Facet_mapping_doc_for_EURO4M" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true"/>
+        <task id="15" name="CoG_integration" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[CoG would simply make a SODA request for the data on the authenticated user's behalf, and return the service URL to the user and a message indicating the handover to SODA.  Minimal error handling in the event of unresponsive SODA.]]></notes>
+        </task>
+        <task id="17" name="Notification_system" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+            <notes><![CDATA[To communicate to the use when the requested data is ready for retrieval. ]]></notes>
+        </task>
+    </tasks>
+    <resources>
+        <resource id="2" name="Per Lundqvist" function="Default:1" contacts="" phone=""/>
+        <resource id="3" name="Prashanth Dwarakanath" function="Default:1" contacts="" phone=""/>
+        <resource id="5" name="Hamish Struthers" function="Default:0" contacts="" phone=""/>
+        <resource id="6" name="Michael Kolax" function="Default:0" contacts="" phone=""/>
+        <resource id="7" name="Nikulin Grigory" function="Default:0" contacts="" phone=""/>
+        <resource id="8" name="Sebastien Villaume" function="Default:0" contacts="" phone=""/>
+        <resource id="9" name="Luca Cinquini (CoG)" function="Default:0" contacts="" phone=""/>
+    </resources>
+    <allocations>
+        <allocation task-id="11" resource-id="7" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="15" resource-id="9" function="Default:0" responsible="true" load="100.0"/>
+    </allocations>
+    <vacations/>
+    <taskdisplaycolumns>
+        <displaycolumn property-id="tpd2" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd7" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd8" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd6" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd10" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd11" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd9" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd1" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd0" order="-1" width="75" visible="false"/>
+        <displaycolumn property-id="tpd3" order="0" width="225" visible="true"/>
+        <displaycolumn property-id="tpd4" order="1" width="100" visible="true"/>
+        <displaycolumn property-id="tpd5" order="2" width="99" visible="true"/>
+    </taskdisplaycolumns>
+    <previous/>
+    <roles roleset-name="Default"/>
+</project>

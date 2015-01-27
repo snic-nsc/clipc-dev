@@ -9,4 +9,5 @@
 *.ilg
 *.ind
 *.pyc
-cdeveldoc.pdf
+*.pdf
+blah.txt
