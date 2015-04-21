@@ -1,0 +1,1 @@
+{"freq":{"daily":1,"12hr":0.5,"6hr":0.25},"levelist":{"tas":2,"tasmin":2,"tasmax":2,"pr":0},"time":{"tas":"0000/0300/0600/0900/1200/1500/1800/2100","pr":"0000","tasmax":1800","tasmin":"0600"},"param":{"tas":11.1,"pr":164.129,"tasmax":15.1,"tasmin":16.1},"model":{"SMHI-MESAN":"MESAN"}}

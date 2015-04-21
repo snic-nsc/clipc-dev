@@ -1,0 +1,10 @@
+Project:project_id
+Institute:institude_id
+Product:product
+Frequency:frequency
+Variable:variable
+Reanalysis:reanalysis_id
+Ensemble:reanalysis_ensemble_member
+DrivingReanalysis:driving_reanalysis_id
+DrivingEnsemble:driving_reanalysis_ensemble_member
+Domain:domain

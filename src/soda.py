@@ -5,6 +5,8 @@ from flask import Flask, jsonify, request, redirect, url_for, send_from_director
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import func
+from collections import OrderedDict
+import simplejson as json
 import hashlib
 import os
 import os.path
@@ -170,6 +172,38 @@ class Task(db.Model):
             return f.read()
 
 
+@app.route('/')
+def getEsgfQuery():
+	where=os.path.dirname(__file__)
+	facetfile=os.path.join(where,"esgf-mars-facet-mapping")
+	mappingsfile=os.path.join(where,"esgf-mars-default-mapping")
+	mappingsdict=OrderedDict()
+	facetvals=dict()
+	fp=open(facetfile,"r")
+	lines=fp.readlines()
+	fp.close()
+	fp=open(mappingsfile,'r')
+	mappingsdict=json.load(fp,object_pairs_hook=OrderedDict)
+	fp.close()
+	facetlist=list()
+	for line in lines:
+		facet=line.split(':')[0]
+		facetlist.append(facet)
+	try:
+		for facet in facetlist:
+			#print facet
+			val=request.args.get(facet)
+			if val!= None:
+				#print "%s:%s"%(facet,val)
+				facetvals[facet]=val
+		mappingsdict['date']=mappingsdict['datestr']
+		mappingsdict['date']+=str(mappingsdict['freq'])
+		mappingsdict.pop('datestr')
+		mappingsdict.pop('freq')
+	except:
+		raise
+	return "All Ok"	
+		
 
 # FIXME: requires authorization (used by the esg node)
 # TODO: maybe limit the amount of retries, timeout?
