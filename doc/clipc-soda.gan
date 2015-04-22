@@ -1,14 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?><project name="ClipC-SODA" company="" webLink="http://" view-date="2014-12-28" view-index="0" gantt-divider-location="428" resource-divider-location="300" version="2.0" locale="en_IN">
+<?xml version="1.0" encoding="UTF-8"?><project name="ClipC-SODA" company="" webLink="http://" view-date="2015-04-12" view-index="0" gantt-divider-location="528" resource-divider-location="300" version="2.0" locale="en_IN">
     <description/>
-    <view zooming-state="default:6" id="gantt-chart">
-        <field id="tpd3" name="Name" width="63" order="0"/>
-        <field id="tpd4" name="Begin date" width="4" order="1"/>
-        <field id="tpd5" name="End date" width="20" order="2"/>
-        <field id="tpd7" name="Completion" width="11" order="3"/>
+    <view zooming-state="default:7" id="gantt-chart">
+        <field id="tpd3" name="Name" width="55" order="0"/>
+        <field id="tpd4" name="Begin date" width="8" order="1"/>
+        <field id="tpd5" name="End date" width="21" order="2"/>
+        <field id="tpd7" name="Completion" width="13" order="3"/>
     </view>
     <view id="resource-table">
         <field id="0" name="Name" width="50" order="0"/>
-        <field id="1" name="Default role" width="49" order="1"/>
+        <field id="1" name="Default role" width="50" order="1"/>
     </view>
     <!-- -->
     <calendars>
@@ -67,24 +67,22 @@
             <taskproperty id="tpd8" name="coordinator" type="default" valuetype="text"/>
             <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
         </taskproperties>
-        <task id="7" name="SODA_config_file_development" color="#8cb6ce" meeting="false" start="2015-02-02" duration="1" complete="0" expand="true">
+        <task id="7" name="SODA_config_file_development" color="#8cb6ce" meeting="false" start="2015-02-02" duration="1" complete="100" expand="true">
             <notes><![CDATA[1. Configuration file format, for SODA and Plugin.
 2. Configuration file parser.
 Will be revisited from time to time.]]></notes>
-            <depend id="5" type="2" difference="0" hardness="Strong"/>
-            <depend id="55" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="5" name="Query_converter" color="#8cb6ce" meeting="false" start="2015-02-03" duration="1" complete="0" expand="true">
+        <task id="5" name="Query_converter" color="#8cb6ce" meeting="false" start="2015-04-15" duration="5" complete="100" expand="true">
             <notes><![CDATA[An ESGF to MARS query converter.
 This would use DRS and facet mapping present in configuration file to covert ESGF Search queries to corresponding MARS queries for data, in case of download workflow, and metadata, in case of publication workflow. (Common for both metadata and data retrieval, as that specific is carried out by the MARS query tool)]]></notes>
             <depend id="55" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="20" name="MARS metadata/data retrieval tool" color="#8cb6ce" meeting="false" start="2015-02-03" duration="1" complete="0" expand="true">
+        <task id="20" name="MARS metadata/data retrieval tool" color="#8cb6ce" meeting="false" start="2015-04-15" duration="1" complete="100" expand="true">
             <notes><![CDATA[Tool/script to query MARS for metadata and/or data itself for queries supplied to it.  Used for debugging issues.  This would be incorporated into the plugin. ]]></notes>
             <depend id="55" type="2" difference="0" hardness="Strong"/>
             <depend id="89" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="55" name="Version 1.0" color="#8cb6ce" meeting="true" start="2015-02-04" duration="0" complete="0" expand="true">
+        <task id="55" name="Version 1.0" color="#8cb6ce" meeting="true" start="2015-04-22" duration="0" complete="0" expand="true">
             <notes><![CDATA[The deliverables for this milestone are the following:
 1. Support for dynamic ESGF-style queries
 2. Conversion of ESGF-style query to MARS queries.
@@ -92,50 +90,53 @@ This would use DRS and facet mapping present in configuration file to covert ESG
             <depend id="0" type="2" difference="0" hardness="Strong"/>
             <depend id="22" type="2" difference="0" hardness="Rubber"/>
             <depend id="23" type="2" difference="0" hardness="Rubber"/>
+            <depend id="30" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="22" name="Data_questionnaire_maker" color="#8cb6ce" meeting="false" start="2015-02-09" duration="5" complete="0" expand="true">
+        <task id="22" name="Data_questionnaire_maker" color="#8cb6ce" meeting="false" start="2015-04-24" duration="5" complete="0" expand="true">
             <notes><![CDATA[This will use retrieved metadata and DRS to create data questionnaire, which would be used by SODA publisher script to perform SOLR publications.]]></notes>
             <depend id="23" type="2" difference="0" hardness="Strong"/>
             <depend id="89" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="23" name="Solr_publish_and_unpublish_tool" color="#8cb6ce" meeting="false" start="2015-02-16" duration="5" complete="0" expand="true">
+        <task id="23" name="Solr_publish_and_unpublish_tool" color="#8cb6ce" meeting="false" start="2015-05-01" duration="5" complete="0" expand="true">
             <notes><![CDATA[External to SODA, it's a script that'll perform SOLR publishes and unpublishes. Used for testing and would later be incorporated into the SODA publisher script.]]></notes>
             <depend id="89" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="89" name="Version 1.1" color="#8cb6ce" meeting="true" start="2015-02-23" duration="0" complete="0" expand="true">
+        <task id="89" name="Version 1.1" color="#8cb6ce" meeting="true" start="2015-05-08" duration="0" complete="0" expand="true">
             <notes><![CDATA[On top of Version 1.0, this would have the following:
 1. Using queried metadata to generate data questionnaire, for use in publication.
 2. SOLR publish and unpublish tool, which would use the data questionnaire, for publication. ]]></notes>
             <depend id="104" type="2" difference="0" hardness="Rubber"/>
             <depend id="106" type="2" difference="0" hardness="Rubber"/>
+            <depend id="128" type="2" difference="0" hardness="Strong"/>
+            <depend id="130" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="28" name="HTTP_fileserver" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+        <task id="28" name="HTTP_fileserver" color="#8cb6ce" meeting="false" start="2015-03-02" duration="50" complete="0" expand="true">
             <notes><![CDATA[With ESGF-style authentication.  For serving online data and serving status message page to user.
 ]]></notes>
+            <depend id="130" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="104" name="Design of status page" color="#8cb6ce" meeting="false" start="2015-02-23" duration="3" complete="0" expand="true">
+        <task id="104" name="Design of status page" color="#8cb6ce" meeting="false" start="2015-05-08" duration="3" complete="0" expand="true">
             <notes><![CDATA[This is the page that is presented to the user about status of the requested retrieve operation. Boolean. Will have the link to the wget script, if the fetch is complete.  For automated queries by external tools etc, a seperate WPS query would provide result (Not-yet-available, JSON/xml with full list of URLs, error message etc)]]></notes>
+            <depend id="130" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="106" name="SODA_wget_script_generator" color="#8cb6ce" meeting="false" start="2015-02-23" duration="4" complete="0" expand="true">
-            <depend id="2" type="2" difference="0" hardness="Strong"/>
-        </task>
-        <task id="2" name="Scheduler_prework" color="#8cb6ce" meeting="false" start="2015-02-27" duration="5" complete="0" expand="true">
+        <task id="106" name="SODA_wget_script_generator" color="#8cb6ce" meeting="false" start="2015-05-08" duration="4" complete="0" expand="true"/>
+        <task id="2" name="Scheduler_prework" color="#8cb6ce" meeting="false" start="2015-03-02" duration="15" complete="100" expand="true">
             <notes><![CDATA[Reading up about possible solutions, evaluating them.
 ]]></notes>
             <depend id="126" type="2" difference="0" hardness="Strong"/>
         </task>
-        <task id="126" name="SODA_Scheduler-1.0" color="#8cb6ce" meeting="false" start="2015-03-06" duration="1" complete="0" expand="true">
+        <task id="126" name="SODA_Scheduler-1.0" color="#8cb6ce" meeting="false" start="2015-03-23" duration="23" complete="100" expand="true">
             <notes><![CDATA[Exteremely minimal FCFS scheduling, no checks for multiple requests for same resources etc.
 Just to demonstrate queing capability.]]></notes>
         </task>
-        <task id="128" name="SODA_WPS_service-1.0" color="#8cb6ce" meeting="false" start="2014-12-29" duration="1" complete="0" expand="true">
+        <task id="128" name="SODA_WPS_service-1.0" color="#8cb6ce" meeting="false" start="2015-05-08" duration="8" complete="0" expand="true">
             <notes><![CDATA[Extremely minimal WPS service capable of advertising services provided. Only for download workflow, not publication.
 ]]></notes>
         </task>
-        <task id="30" name="SODA_database_version-1.0" color="#8cb6ce" meeting="false" start="2013-01-01" duration="1" complete="0" expand="true">
+        <task id="30" name="SODA_database_version-1.0" color="#8cb6ce" meeting="false" start="2015-04-22" duration="1" complete="100" expand="true">
             <notes><![CDATA[Minimal database schema for ]]></notes>
         </task>
-        <task id="130" name="Version 1.2" color="#8cb6ce" meeting="false" start="2014-12-29" duration="1" complete="0" expand="true">
+        <task id="130" name="Version 1.2" color="#8cb6ce" meeting="false" start="2015-05-13" duration="1" complete="0" expand="true">
             <notes><![CDATA[This milestone would have the following, on top of Version 1.1
 
 1. Minimal WPS, with download workflow (only), including responses for humans and programs.
@@ -146,7 +147,7 @@ Just to demonstrate queing capability.]]></notes>
 6. User status page. 
 ]]></notes>
         </task>
-        <task id="0" name="DRS_and_config_checker" color="#8cb6ce" meeting="false" start="2015-02-04" duration="3" complete="0" expand="true">
+        <task id="0" name="DRS_and_config_checker" color="#8cb6ce" meeting="false" start="2015-04-22" duration="3" complete="0" expand="true">
             <notes><![CDATA[Check syntax correctness of configuration file and check validity of
 and check validity of incoming queries.]]></notes>
         </task>
@@ -206,7 +207,8 @@ A plugin contract.]]></notes>
         <allocation task-id="26" resource-id="2" function="Default:1" responsible="true" load="20.0"/>
         <allocation task-id="104" resource-id="2" function="Default:1" responsible="true" load="100.0"/>
         <allocation task-id="2" resource-id="2" function="Default:1" responsible="true" load="50.0"/>
-        <allocation task-id="28" resource-id="3" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="126" resource-id="2" function="Default:1" responsible="true" load="100.0"/>
+        <allocation task-id="28" resource-id="2" function="Default:1" responsible="false" load="10.0"/>
         <allocation task-id="34" resource-id="3" function="Default:1" responsible="true" load="50.0"/>
         <allocation task-id="23" resource-id="3" function="Default:1" responsible="true" load="100.0"/>
         <allocation task-id="22" resource-id="3" function="Default:1" responsible="true" load="100.0"/>
@@ -214,6 +216,7 @@ A plugin contract.]]></notes>
         <allocation task-id="5" resource-id="3" function="Default:1" responsible="true" load="50.0"/>
         <allocation task-id="106" resource-id="3" function="Default:1" responsible="true" load="100.0"/>
         <allocation task-id="2" resource-id="3" function="Default:1" responsible="true" load="50.0"/>
+        <allocation task-id="28" resource-id="3" function="Default:1" responsible="false" load="10.0"/>
         <allocation task-id="11" resource-id="7" function="Default:0" responsible="true" load="100.0"/>
         <allocation task-id="14" resource-id="7" function="Default:0" responsible="true" load="100.0"/>
         <allocation task-id="15" resource-id="9" function="Default:0" responsible="true" load="100.0"/>
@@ -228,10 +231,10 @@ A plugin contract.]]></notes>
         <displaycolumn property-id="tpd9" order="-1" width="75" visible="false"/>
         <displaycolumn property-id="tpd1" order="-1" width="75" visible="false"/>
         <displaycolumn property-id="tpd0" order="-1" width="75" visible="false"/>
-        <displaycolumn property-id="tpd3" order="0" width="268" visible="true"/>
-        <displaycolumn property-id="tpd4" order="1" width="19" visible="true"/>
-        <displaycolumn property-id="tpd5" order="2" width="89" visible="true"/>
-        <displaycolumn property-id="tpd7" order="3" width="48" visible="true"/>
+        <displaycolumn property-id="tpd3" order="0" width="293" visible="true"/>
+        <displaycolumn property-id="tpd4" order="1" width="44" visible="true"/>
+        <displaycolumn property-id="tpd5" order="2" width="114" visible="true"/>
+        <displaycolumn property-id="tpd7" order="3" width="73" visible="true"/>
     </taskdisplaycolumns>
     <previous/>
     <roles roleset-name="Default"/>
