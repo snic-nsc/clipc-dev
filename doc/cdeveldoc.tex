@@ -128,6 +128,8 @@ The wget script should be obtained from the ESGF subsystem and then modiﬁed by
 \item Scheduler looks up availability status prior to scheduling fetch operation
 \item Scheduler to handle overlapping requests.
 \end{enumerate}
+\subsection{wget script and download tracking}
+The system should track user downloads. This is to ensure that files which have been fetched completely by the user can be opportunistically popped out of the cache, in the event of high demand. The script should use checksums provided by the server to check in the event of a subsequent execution, to only fetch what is required and not attempt fetches of files already downloaded completely.
 \section{Data publication workflow}
 \begin{enumerate}
 \item Prior to publication of offline data, a limiting constraint that would define the boundaries for the publication is specified. 
