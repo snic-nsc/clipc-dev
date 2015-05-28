@@ -660,7 +660,8 @@ def get_purgable_files():
         filter(StagableFile.state == 'online').\
         filter(~StagableFile.requests.any())
     purgable_files = q_files_all_requests_failed_or_deletable.\
-        union(q_files_no_requests)
+        union(q_files_no_requests).order_by(StagableFile.request_count) # or order by the current request reference count
+
     assert all(r.is_deletable \
                    for sf in q_files_all_requests_failed_or_deletable \
                    for r in sf.requests), \
