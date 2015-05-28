@@ -50,7 +50,7 @@ import uuid
 
 
 # log to syslog: http://www.toforge.com/2011/06/celery-centralized-logging/
-LOGFORMAT='%(asctime)s.%(msecs)03d %(levelname)-7s %(message)s'
+LOGFORMAT='%(asctime)s %(levelname)-7s %(message)s'
 
 if __name__ == '__main__':
     logger = logging.getLogger('soda')
@@ -80,7 +80,7 @@ cel.conf.update(
     # python exceptions etc.) to get rid of security warnings at
     # startup):
     CELERYD_TASK_LOG_FORMAT = LOGFORMAT,
-    CELERYD_LOG_FORMAT = '%(asctime)s.%(msecs)03d %(levelname)-7s <celery> %(message)s',
+    CELERYD_LOG_FORMAT = '%(asctime)s %(levelname)-7s <celery> %(message)s',
     CELERY_ACCEPT_CONTENT = [ 'pickle', 'json', 'msgpack', 'yaml' ],
     CELERY_QUEUES = (
         kombu.Queue('default',
