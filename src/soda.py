@@ -61,7 +61,7 @@ if __name__ == '__main__':
 else:
     logger = get_task_logger(__name__)
 
-#logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 app = Flask('soda')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/flask.db'
 db = SQLAlchemy(app)
@@ -732,26 +732,26 @@ def schedule_tasks():
     dispatch_tasks = True
     num_tasks_dispatched = 0
     num_tasks_failed = 0
-    num_tasks_skipped = 0
+    num_tasks_deferred = 0
 
     for rs in dispatchable_requests:
         try:
             assert available_space >= 0, (STAGE_SPACE, reserved_space,
                                           available_space)
             files_offline_not_being_staged = get_files_offline_not_being_staged(rs)
-            logger.info('scheduling %s (waiting for all size estimation tasks),'
-                        ' available space %d bytes, offline files: %s' % \
+            logger.info('scheduling %s, available space %d bytes, offline files: %s' % \
                         (rs.uuid, available_space,
                          ', '.join(sf.name for sf in files_offline_not_being_staged)))
             logger.debug('offline files: %s' % \
                          files_offline_not_being_staged.all())
+            logger.info('waiting for all size estimation tasks...')
             join_sizing_tasks(files_offline_not_being_staged.\
                                   filter(StagableFile.size == None))
         except Exception, e:
             # Note: all requests will keep on failing until this task has been resubmitted
             logger.warning('sizing estimation of %s failed: %s, request -> '
-                           'failed' % (rs, e))
-            fail_request(rs, 'sizing estimation of %s failed: %s' % (rs, e))
+                           'failed' % (rs.uuid, e))
+            fail_request(rs, 'sizing estimation of %s failed: %s' % (rs.uuid, e))
             num_tasks_failed += 1
             continue
 
@@ -796,21 +796,22 @@ def schedule_tasks():
             if offline_size > available_space:
                 logger.info('%s requires more space than what is available '
                             '(%d > %d), initiating cache purging' % \
-                            ( rs, offline_size, available_space ))
-                bytes_freed, requests_to_delete = purge_files(offline_size - available_space,
+                            ( rs.uuid, offline_size, available_space ))
+                required_amount = offline_size - available_space
+                bytes_freed, requests_to_delete = purge_files(required_amount,
                                                               purgable_files)
                 available_space += bytes_freed
                 logger.info('freed up %d/%d bytes (%d%%) - available space %d '
                             'bytes' % \
-                            ( bytes_freed, offline_size,
-                              int(round(bytes_freed / float(offline_size) * 100), 3),
+                            ( bytes_freed, required_amount,
+                              int(round(bytes_freed / float(offline_size) * 100, 3)),
                               available_space ))
                 if requests_to_delete:
                     assert all(x.is_deletable for x in requests_to_delete), requests_to_delete
                     logger.info('deleting all deletable requests from db '
                                 'belonging to files that have been '
                                 'purged: %s' % \
-                                (x.uuid for x in requests_to_delete))
+                                ', '.join(x.uuid for x in requests_to_delete))
                     cel_db_session.query(DownloadRequest).\
                         filter(DownloadRequest.uuid.in_(x.uuid for x in requests_to_delete)).\
                         delete(synchronize_session='fetch')
@@ -823,6 +824,7 @@ def schedule_tasks():
                     dispatch_tasks = False
                     # schedule_tasks will be triggered upon next
                     # request failure or deletion after finish
+                    num_tasks_deferred += 1
 
             # optimisation possibility: we can also dispatch as many
             # tasks as there currently is room for even if the request
@@ -872,11 +874,11 @@ def schedule_tasks():
                         'can not be fast forwarded and at least one higher '
                         'priority request is still waiting to be dispatched' % \
                         rs.uuid)
-            num_tasks_skipped += 1
+            num_tasks_deferred += 1
 
     logger.info('scheduling iteration completed, %d tasks dispatched, %d '
-                'tasks failed, %d tasks skipped' % \
-                (num_tasks_dispatched, num_tasks_failed, num_tasks_skipped))
+                'tasks failed, %d tasks deferred' % \
+                (num_tasks_dispatched, num_tasks_failed, num_tasks_deferred))
     cel_db_session.commit()
 
 
