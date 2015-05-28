@@ -637,15 +637,15 @@ def get_reserved_files():
 # the db. A failed request will be present in the db until deleted,
 # but its files won't be reserved.
 def get_reserved_space():
-    return sum(sf.size for sf in get_reserved_files())
-#    reserved_space = cel_db_session.query(func.sum(StagableFile.size)).\
-#        join(StagableFile.requests).\
-#        filter(~DownloadRequest.is_deletable).\
-#        filter(DownloadRequest.state.in_([ 'dispatched', 'finished' ])).\
-#        scalar()
-#    if reserved_space is not None:
-#        return reserved_space
-#    return 0
+    reserved_space = cel_db_session.query(func.sum(StagableFile.size)).\
+        join(StagableFile.requests).\
+        filter(~DownloadRequest.is_deletable).\
+        filter(DownloadRequest.state.in_([ 'dispatched', 'finished' ])).\
+        scalar()
+    if reserved_space is not None:
+        assert reserved_space == sum(sf.size for sf in get_reserved_files())
+        return reserved_space
+    return 0
 
 
 # return all StagableFile where either it is an orphan belonging to no
