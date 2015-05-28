@@ -61,7 +61,7 @@ if __name__ == '__main__':
 else:
     logger = get_task_logger(__name__)
 
-logger.setLevel(logging.INFO)
+#logger.setLevel(logging.DEBUG)
 app = Flask('soda')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/flask.db'
 db = SQLAlchemy(app)
@@ -97,7 +97,8 @@ cel.conf.update(
                     kombu.Exchange('default'),
                     routing_key='register')    # == 1 worker
     ),
-    CELERY_ROUTES = { 'soda.register_request' : { 'queue' : 'registrar' },
+    CELERY_ROUTES = { 'soda.register_request_demo' : { 'queue' : 'registrar' },
+                      'soda.register_request' : { 'queue' : 'registrar' },
                       'soda.schedule_tasks' : { 'queue' : 'scheduler' },
                       'soda.schedule_join_staging_task' : { 'queue' : 'scheduler' },
                       'soda.schedule_mark_request_deletable' : { 'queue' : 'scheduler' },
@@ -213,6 +214,7 @@ class DownloadRequest(db.Model):
 class StagableFile(db.Model):
     name = db.Column(db.String(255), primary_key=True)
     size = db.Column(db.Integer)
+    params = db.Column(db.Text)
     checksum_sha1 = db.Column(db.String(40))
     request_count = db.Column(db.Integer, nullable=False)
     time_accessed = db.Column(db.DateTime)
@@ -226,9 +228,10 @@ class StagableFile(db.Model):
     state = db.Column(db.Enum('online', 'offline'),
                       nullable=False, default='offline')
 
-    def __init__(self, name, size=None, checksum_sha1=None, request_count=1,
+    def __init__(self, name, params=None, size=None, checksum_sha1=None, request_count=1,
                  path=STAGEDIR):
         self.name = name
+        self.params = params
         self.size = size
         self.checksum_sha1 = checksum_sha1
         self.request_count = request_count
@@ -334,6 +337,33 @@ def getEsgfQuery(request_args):
 		raise
 	return mappingsdict
 
+
+@celery.task(acks_late=True)
+def register_request_demo(openid, file_to_query):
+    r = DownloadRequest(openid)
+    logger.debug('created new request %s' % r)
+    file_names = file_to_query.keys()
+    registered_files = cel_db_session.query(StagableFile).\
+        filter(StagableFile.name.in_(file_names))
+    logger.debug('registered files: %s' % registered_files.all())
+    new_file_names = set(file_names) - set(x.name for x in registered_files)
+    logger.debug('new file names: %s' % new_file_names)
+    new_files = [ StagableFile(file_name, file_to_query[file_name]) for file_name in new_file_names ]
+    logger.debug('new files: %s' % new_files)
+    registered_files.update(
+        { StagableFile.request_count : StagableFile.request_count  + 1 },
+        synchronize_session=False)
+    r.files.extend(registered_files)
+    r.files.extend(new_files)
+    # This won't throw an integrityerror as long as this task is
+    # single threaded. If not, there's always a risk that one or more
+    # identical StagableFile may be inserted concurrently.
+    cel_db_session.add(r)
+    cel_db_session.commit()
+    logger.info('registered request %s for openid=%s, file_names=%s '
+                '(unregistered=%s)' % \
+                (r.uuid, openid, file_names, new_file_names))
+    return r.uuid
 
 @celery.task(acks_late=True)
 def register_request(openid, file_names):
@@ -572,7 +602,7 @@ def schedule_join_staging_task(task_id):
             logger.debug('db commit')
             cel_db_session.commit() # verify that we really need this - but it's important that the query below includes r
             for r in finishable_requests(sf):
-                logger.debug('finishing request %s' % r)
+                logger.info('request %s finished' % r.uuid)
                 finish_request(r)
     except Exception, e: # fixme: catch some, reraise others
         logger.warning('%s failed: %s' % (staging_task, e))
@@ -585,7 +615,7 @@ def schedule_join_staging_task(task_id):
         logger.debug('db commit')
         cel_db_session.commit()
         for r in dispatched_requests(sf):
-            logger.info('failing request %s' % r.uuid)
+            logger.info('request %s failed' % r.uuid)
             fail_request(r, 'Staging of %s failed: %s' % (sf, str(e)))
     finally:
         cel_db_session.commit()
@@ -909,6 +939,73 @@ def handle_api_internal_error(error):
     logger.error(str(error))
     return ( jsonify(message='Internal Error', payload=str(error)), 500 )
 
+@app.route('/request_demo', methods=['POST'])
+def http_create_request_demo():
+    logger.debug(request)
+    r = select_request_input(request)
+    openid = r.get('openid')
+    if not openid:
+        logger.warn('faulty request %s is missing attribute openid' % request)
+        raise HTTPBadRequest('missing attribute openid (string)')
+    assert type(openid) is str or type(openid) is unicode, openid
+#    q = getEsgfQuery(r)
+#    if not q:
+#        logger.warn('faulty request %s is missing attribute query' % request)
+#        raise HTTPBadRequest('missing attribute query (string) - ESGF style '
+#                             'query', payload=str(request))
+    # TODO: REMOVE ME
+    file_names = r.get('files')
+    if not file_names:
+        logger.warn('faulty request %s is missing attribute files' % request)
+        raise HTTPBadRequest('missing attribute files (list of strings)',
+                             payload=str(request))
+    assert type(file_names) is list, file_names
+    assert all(type(x) is str or type(x) is unicode for x in file_names)
+
+    q = { 'class'    : 'op',
+          'stream'   : 'oper',
+          'expver'   : 'c11a',
+          'model'    : 'hirlam',
+          'type'     : 'fc',
+          'date'     : '20130601',
+          'time'     : '00',
+          'step'     : '0',
+          'levtype'  : 'hl',
+          'levelist' : '2',
+          'param'    : '11.1' }
+    file_to_query = {}
+    for name in file_names:
+        mars_params = ',\n'.join('%s = %s' % (k,v) for k,v in q.iteritems())
+        file_to_query[name] = mars_params
+    logger.debug('=> registering new request: openid=%s, file_to_query=%s' % \
+                 (openid, file_to_query))
+
+    # the reason we run this as a worker job (which only has one
+    # worker) is to guarantee it is _not_ run concurrently. It makes
+    # it less likely we get more than one identical staging/sizing
+    # task running. We still can get orphan staging tasks if the
+    # worker crasches in the wrong place - before it's been registered
+    # in the sql db. But we don't risk each staging task being subject
+    # to the race condition that occurs in the window between checking
+    # for the existence of an existing task and starting a new task
+    # (which can lead to > 1 identical tasks being executed in a
+    # concurrent situation). This register_request task is
+    # expected to be really quick so it's not expected to be a
+    # performance issue.
+    #
+    # create request and submit sizing tasks for unknown file_names
+    r_uuid = register_request_demo.delay(openid, file_to_query).get()
+    logger.info('<= registered new request %s for openid=%s, file_to_query=%s' % \
+                (r_uuid, openid, file_to_query))
+    logger.debug('=> submitting sizing tasks for request id %s' % r_uuid)
+    schedule_submit_sizing_tasks.delay(r_uuid)
+    logger.debug('=> invoking scheduler')
+    schedule_tasks.delay()
+    return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
+
+
+
+
 # FIXME: requires authorization (used by the esg node)
 # TODO: maybe limit the amount of retries, timeout?
 @app.route('/request', methods=['POST'])
@@ -1143,23 +1240,29 @@ def unlink(file_name):
         return False
 
 
+#    params = { 'class'    : 'op',
+#               'stream'   : 'oper',
+#               'expver'   : 'c11a',
+#               'model'    : 'hirlam',
+#               'type'     : 'fc',
+#               'date'     : '20130601',
+#               'time'     : '00',
+#               'step'     : '0',
+#               'levtype'  : 'hl',
+#               'levelist' : '2',
+#               'param'    : '11.1' }
 def create_mars_request(verb, file_name, target=None):
-    # fake it since we don't know how to convert file_name to a
-    # request yet:
-    params = { 'class'    : 'op',
-               'stream'   : 'oper',
-               'expver'   : 'c11a',
-               'model'    : 'hirlam',
-               'type'     : 'fc',
-               'date'     : '20130601',
-               'time'     : '00',
-               'step'     : '0',
-               'levtype'  : 'hl',
-               'levelist' : '2',
-               'param'    : '11.1' }
+    sf = cel_db_session.query(StagableFile).get(file_name)
+    logger.debug('creating MARS request from %s' % sf)
+    params = {}
+    for l in sf.params.split(',\n'):
+        k,v = l.split('=', 1)
+        params[k.strip()] = v.strip()
     if target:
         params['target'] = target
-    return MarsRequest(verb, params)
+    req = MarsRequest(verb, params)
+    logger.debug('MARS request is: %s' % req)
+    return req
 
 
 class MarsRequest(object):
