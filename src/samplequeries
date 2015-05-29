@@ -1,6 +1,17 @@
-curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=uas&frequency=6hr'
-curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=tas&frequency=daily'
-curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=wsgsmax&frequency=3hr'
-curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=hurs&frequency=6hr'
-curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=vas&frequency=12hr'
-curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=tasmin&frequency=daily'
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tas&frequency=3hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tas&frequency=6hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tas&frequency=12hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tas&frequency=daily' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=pr&frequency=3hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=pr&frequency=6hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=pr&frequency=12hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=pr&frequency=daily' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmin&frequency=3hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmin&frequency=6hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmin&frequency=12hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmin&frequency=daily' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmax&frequency=3hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmax&frequency=6hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmax&frequency=12hr' -X POST -H "Content-Type: application/x-www-form-urlencoded"
+curl -D - 'esg-test:5000/request_demo?project=clipc&institute=SMHI&model=SMHI-MESAN&variable=tasmax&frequency=daily' -X POST -H "Content-Type: application/x-www-form-urlencoded"
