@@ -61,7 +61,7 @@ if __name__ == '__main__':
 else:
     logger = get_task_logger(__name__)
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 app = Flask('soda')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/flask.db'
 db = SQLAlchemy(app)
@@ -143,7 +143,7 @@ STAGEDIR = os.path.realpath(os.getenv('STAGEDIR', os.getenv('TMPDIR', '/tmp')))
 # Assumes we own the whole filesystem. Possibly we should add a way to
 # reserve a percentage or static amount of STAGE_SPACE rather than use
 # all of it:
-STAGE_SPACE = 459427 * 4 + 17 #int(df(STAGEDIR)['1-blocks'])
+STAGE_SPACE = int(df(STAGEDIR)['1-blocks'])
 
 def register_existing_files(names):
     pass
@@ -324,17 +324,20 @@ def getEsgfQuery(request_args):
 	fp=open(facetfile,'r')
 	facetsdict=json.load(fp,object_pairs_hook=OrderedDict)
 	fp.close()
+        variablename=''
+        freqval=''
 	try:
 		for facet,backend in facetsdict.iteritems():
-			print facet
 			val=request_args.get(facet)
 			if val!= None:
 				for backendopt in backend:
 					if attribsdict.__contains__(backendopt):
 						if facet =='variable':
-							variablename=facet
+							variablename=val
+						if facet =='frequency':
+							freqval=val
+
 						#we have a match for the facet..
-						print 'user has supplied facet %s for which backend match is %s'%(facet,backendopt)
 						if attribsdict[backendopt].__contains__(val):
 							#we even have a substitution value for the specified facet value
 							#print 'backend value for user supplied facet value %s is %s'%(val,attribsdict[backendopt][val])
@@ -349,9 +352,10 @@ def getEsgfQuery(request_args):
 		mappingsdict.pop('freq')
 	except:
 		raise
-	print mappingsdict
-	fn='%s_Eur05_SMHI-HIRLAM_RegRean_v0d0_SMHI-MESAN_v1_day.grb'%(variablename)
+	fn='%s_Eur05_SMHI-HIRLAM_RegRean_v0d0_SMHI-MESAN_v1_%s.grb'%(variablename,freqval)
 	return (fn,mappingsdict)
+
+
 @celery.task(acks_late=True)
 def register_request_demo(openid, file_to_query):
     r = DownloadRequest(openid)
@@ -960,40 +964,20 @@ def handle_api_internal_error(error):
 def http_create_request_demo():
     logger.debug(request)
     r = select_request_input(request)
-    openid = r.get('openid')
+    openid = 'https://esg-dn1.nsc.liu.se/esgf-idp/openid/perl'
+#    openid = r.get('openid')
     if not openid:
         logger.warn('faulty request %s is missing attribute openid' % request)
         raise HTTPBadRequest('missing attribute openid (string)')
     assert type(openid) is str or type(openid) is unicode, openid
-#    q = getEsgfQuery(r)
-#    if not q:
-#        logger.warn('faulty request %s is missing attribute query' % request)
-#        raise HTTPBadRequest('missing attribute query (string) - ESGF style '
-#                             'query', payload=str(request))
-    # TODO: REMOVE ME
-    file_names = r.get('files')
-    if not file_names:
-        logger.warn('faulty request %s is missing attribute files' % request)
-        raise HTTPBadRequest('missing attribute files (list of strings)',
-                             payload=str(request))
-    assert type(file_names) is list, file_names
-    assert all(type(x) is str or type(x) is unicode for x in file_names)
 
-    q = { 'class'    : 'op',
-          'stream'   : 'oper',
-          'expver'   : 'c11a',
-          'model'    : 'hirlam',
-          'type'     : 'fc',
-          'date'     : '20130601',
-          'time'     : '00',
-          'step'     : '0',
-          'levtype'  : 'hl',
-          'levelist' : '2',
-          'param'    : '11.1' }
-    file_to_query = {}
-    for name in file_names:
-        mars_params = ',\n'.join('%s = %s' % (k,v) for k,v in q.iteritems())
-        file_to_query[name] = mars_params
+    name,params = getEsgfQuery(r)
+    if not params:
+        logger.warn('failed to provide MARS params from request: %s' % request)
+        raise HTTPBadRequest('failed to provide MARS params from '
+                             'request: %s' % request, payload=str(request))
+
+    file_to_query = { name : ',\n'.join('%s = %s' % (k,v) for k,v in params.iteritems()) }
     logger.debug('=> registering new request: openid=%s, file_to_query=%s' % \
                  (openid, file_to_query))
 
