@@ -1,0 +1,6 @@
+curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=uas&frequency=6hr'
+curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=tas&frequency=daily'
+curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=wsgsmax&frequency=3hr'
+curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=hurs&frequency=6hr'
+curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=vas&frequency=12hr'
+curl 'localhost:5000?project=clipc&Institute=SMHI&model=SMHI-MESAN&variable=tasmin&frequency=daily'

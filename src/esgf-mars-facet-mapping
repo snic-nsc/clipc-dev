@@ -1,10 +1,1 @@
-Project:project_id
-Institute:institude_id
-Product:product
-Frequency:frequency
-Variable:variable
-Reanalysis:reanalysis_id
-Ensemble:reanalysis_ensemble_member
-DrivingReanalysis:driving_reanalysis_id
-DrivingEnsemble:driving_reanalysis_ensemble_member
-Domain:domain
+{"frequency":["freq"],"variable":["param","time","levelist"],"model":["MODEL"],"project":["project"],"institute":["institute"],"product":["product"],"reanalysis":["reanalysis"],"ensemble":["ensemble"],"reanalysis_ensemble_member":["rean"],"drivingReanalysis":["driving_reanalysis_id"],"domain":["domain"]}

@@ -307,37 +307,48 @@ class Task(db.Model):
 
 
 def getEsgfQuery(request_args):
+
 	where=os.path.dirname(__file__)
 	facetfile=os.path.join(where,"esgf-mars-facet-mapping")
 	mappingsfile=os.path.join(where,"esgf-mars-default-mapping")
+	attribsfile=os.path.join(where,"esgf-mars-attrib-mapping")
 	mappingsdict=OrderedDict()
-	facetvals=dict()
-	fp=open(facetfile,"r")
-	lines=fp.readlines()
-	fp.close()
+	attribsdict=OrderedDict()
+	facetsdict=OrderedDict()
 	fp=open(mappingsfile,'r')
 	mappingsdict=json.load(fp,object_pairs_hook=OrderedDict)
 	fp.close()
-	facetlist=list()
-	for line in lines:
-		facet=line.split(':')[0]
-		facetlist.append(facet)
+	fp=open(attribsfile,'r')
+	attribsdict=json.load(fp,object_pairs_hook=OrderedDict)
+	fp.close()
+	fp=open(facetfile,'r')
+	facetsdict=json.load(fp,object_pairs_hook=OrderedDict)
+	fp.close()
 	try:
-		for facet in facetlist:
-			#print facet
+		for facet,backend in facetsdict.iteritems():
+			print facet
 			val=request_args.get(facet)
 			if val!= None:
+				for backendopt in backend:
+					if attribsdict.__contains__(backendopt):
+						#we have a match for the facet..
+						print 'user has supplied facet %s for which backend match is %s'%(facet,backendopt)
+						if attribsdict[backendopt].__contains__(val):
+							#we even have a substitution value for the specified facet value
+							#print 'backend value for user supplied facet value %s is %s'%(val,attribsdict[backendopt][val])
+							sub=attribsdict[backendopt][val]
+							#print 'before change: mappingsdict val=%s'%(mappingsdict[backendopt])
+							mappingsdict[backendopt]=sub
+							#print 'after change: mappingsdict val=%s'%(mappingsdict[backendopt])
 				#print "%s:%s"%(facet,val)
-				facetvals[facet]=val
 		mappingsdict['date']=mappingsdict['datestr']
 		mappingsdict['date']+=str(mappingsdict['freq'])
 		mappingsdict.pop('datestr')
 		mappingsdict.pop('freq')
 	except:
 		raise
+	print mappingsdict
 	return mappingsdict
-
-
 @celery.task(acks_late=True)
 def register_request_demo(openid, file_to_query):
     r = DownloadRequest(openid)
