@@ -331,6 +331,8 @@ def getEsgfQuery(request_args):
 			if val!= None:
 				for backendopt in backend:
 					if attribsdict.__contains__(backendopt):
+						if facet =='variable':
+							variablename=facet
 						#we have a match for the facet..
 						print 'user has supplied facet %s for which backend match is %s'%(facet,backendopt)
 						if attribsdict[backendopt].__contains__(val):
@@ -348,7 +350,8 @@ def getEsgfQuery(request_args):
 	except:
 		raise
 	print mappingsdict
-	return mappingsdict
+	fn='%s_Eur05_SMHI-HIRLAM_RegRean_v0d0_SMHI-MESAN_v1_day.grb'%(variablename)
+	return (fn,mappingsdict)
 @celery.task(acks_late=True)
 def register_request_demo(openid, file_to_query):
     r = DownloadRequest(openid)
