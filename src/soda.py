@@ -1071,25 +1071,40 @@ def mars():
     r = select_request_input(request)     # where r is a dict()
     # FIXME: sanitize this, don't let choose verb keywords, we also
     # _want_ to set target ourselves for each sub request
+    openid = r.get('openid')
+    if not openid:
+        logger.warn('faulty request %s is missing attribute openid' % request)
+        raise HTTPBadRequest('missing attribute openid (string)')
+    assert type(openid) is str or type(openid) is unicode, openid
     verb = r.get('verb').upper()
     if not verb:
-        raise HTTPBadRequest('missing verb (string) - LIST or RETRIEVE')
+        raise HTTPBadRequest('missing MARS request verb (string)')
+    if verb != 'RETRIEVE':
+        raise HTTPBadRequest('only RETRIEVE is supported for the moment')
     params = dict((k.upper(),v) for k,v in r.get('params').iteritems())
     if not params:
-        raise HTTPBadRequest('missing params (dict of string) - any valid MARS request keyword')
+        raise HTTPBadRequest('missing params (dict of string) - any valid '
+                             'MARS request keyword')
+    del params['TARGET']
     logger.debug('request verb: %s' % verb)
     logger.debug('request params: %s' % params)
-    if verb == 'RETRIEVE':
-        fingerprint = verb + (','.join('%s=%s' % (k,v) for k,v in sorted(params.iteritems()) if k != 'target'))
-        file_name = 'mars_%s.grb' % hashlib.sha1(fingerprint).hexdigest()
-        logger.debug('file name: %s' % file_name)
-        params['target'] = os.path.join(STAGEDIR, file_name)
-    else:
-        del params['target']
-        raise AssertionError('TODO: LIST not yet implemented')
-    mars_request = MarsRequest(verb, params)
-    logger.debug('MARS request: %s' % mars_request)
+    # NOTE: there are many params that map to the same canonical MARS
+    # request, but we cannot detect that
+    mars_request_text = ',\n'.join('%s = %s' % (k,v) for k,v in sorted(params.iteritems()))
+    file_name = 'mars_%s.grb' % hashlib.sha1(mars_request_text).hexdigest()
+    logger.debug('file name: %s' % file_name)
 
+    file_to_query = { file_name : mars_request_text }
+    logger.debug('=> registering new request: openid=%s, file_to_query=%s' % \
+                 (openid, file_to_query))
+    r_uuid = register_request_demo.delay(openid, file_to_query).get()
+    logger.info('<= registered new request %s for openid=%s, file_to_query=%s' % \
+                (r_uuid, openid, file_to_query))
+    logger.debug('=> submitting sizing tasks for request id %s' % r_uuid)
+    schedule_submit_sizing_tasks.delay(r_uuid)
+    logger.debug('=> invoking scheduler')
+    schedule_tasks.delay()
+    return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 
 
 # this would allow for the wget script to signal that all files have
@@ -1229,6 +1244,7 @@ def exec_proc(cmd, stdin=None, term_timeout=5):
             rc = p.wait()
 
     yield rc, None, None
+
 
 def unlink(file_name):
     try:
