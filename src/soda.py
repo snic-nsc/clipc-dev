@@ -7,7 +7,7 @@ from flask import Flask, jsonify, redirect, request, send_from_directory, \
     url_for
 from flask.ext.sqlalchemy import SQLAlchemy
 from signal import alarm, SIGALRM, signal
-from sqlalchemy import create_engine, or_
+from sqlalchemy import CheckConstraint, create_engine, or_
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql import func
 import celery
@@ -206,9 +206,6 @@ class DownloadRequest(db.Model):
                    self.time_created, self.state, self.is_deletable ))
 
 
-# FIXME: add constraint >= 0 for request_count ;
-# http://stackoverflow.com/questions/14225998/flask-sqlalchemy-column-constraint-for-positive-integer
-#
 # doc: transparently inserted upon first creation and persistent even
 # if not referenced in a downloadrequest
 class StagableFile(db.Model):
@@ -227,6 +224,8 @@ class StagableFile(db.Model):
                                   uselist=False)
     state = db.Column(db.Enum('online', 'offline'),
                       nullable=False, default='offline')
+    __table_args__ = ( CheckConstraint(request_count >= 0),
+                       CheckConstraint(or_(size == None, size >= 0)) )
 
     def __init__(self, name, params=None, size=None, checksum_sha1=None, request_count=1,
                  path=STAGEDIR):
