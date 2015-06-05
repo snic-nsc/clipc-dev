@@ -1378,6 +1378,10 @@ def estimate_size(file_name):
     if rc != 0 or size is None:
         logger.error('failed to compute size, rc = %d' % rc)
         raise TaskFailure('failed to compute size, rc = %d' % rc)
+    elif size == 0:
+        logger.error('size is %d' % size)
+        raise TaskFailure('size is %d' % size)
+
     est_size = size * FILE_SIZE_WEIGHT + FILE_SIZE_EXTRA
     logger.debug('MARS reported size: %d bytes, after compensating: size * %d + %d = %d' % \
                  (size, FILE_SIZE_WEIGHT, FILE_SIZE_EXTRA, est_size))
