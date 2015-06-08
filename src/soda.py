@@ -1362,22 +1362,13 @@ def checksum_file(file_path):
         return digest.hexdigest()
 
 
-# parse the size from mars list output:
-# ...
-# Grand Total:
-# ============
-#
-# Entries       : 1,008
-# Total         : 204,381,458 (194.913 Mbytes)
-#
-# consider resubmitting itself a certain amount of times and after
-# that it should fail the request
 @celery.task(acks_late=True)
 def estimate_size(file_name):
     logger.info('calling MARS to estimate size for %s' % file_name)
     size = None
-    re_size = re.compile(r'^Total +: *([\d,]+) +\(.+\)$')
+    re_size = re.compile(r'^size=([\d]+);$')
     mars_request = create_mars_request(verb='LIST', file_name=file_name)
+    mars_request.params['OUTPUT'] = 'COST'
     logger.debug('mars_request: %s' % mars_request)
 
     for rc,fd,l in exec_proc([ 'mars' ], stdin=str(mars_request)):
@@ -1389,6 +1380,9 @@ def estimate_size(file_name):
                 size = int(m.group(1).replace(",", ""))
             else:
                 logger.debug('no match')
+        elif fd == 2:
+            logger.warn(l.strip())
+
     assert rc is not None and fd is None and l is None
     # don't trust size if mars returns non-zero
     if rc != 0 or size is None:
