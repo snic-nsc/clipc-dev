@@ -145,8 +145,6 @@ STAGEDIR = os.path.realpath(os.getenv('STAGEDIR', os.getenv('TMPDIR', '/tmp')))
 # all of it:
 STAGE_SPACE = int(df(STAGEDIR)['1-blocks'])
 
-def register_existing_files(names):
-    pass
 
 def create_tempfile():
     fd, file_name = tempfile.mkstemp()
