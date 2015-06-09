@@ -15,7 +15,6 @@ import config
 import errno
 import hashlib
 import logging
-import kombu
 import models
 import os
 import os.path
@@ -23,64 +22,23 @@ import re
 import simplejson as json
 import uuid
 
-# log to syslog: http://www.toforge.com/2011/06/celery-centralized-logging/
-LOGFORMAT='%(asctime)s %(levelname)-7s %(message)s'
 
 if __name__ == '__main__':
     logger = logging.getLogger('soda')
     ch = logging.StreamHandler()
     #ch.setFormatter(logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)-7s %(message)s', datefmt='%Y-%m-%dT%H:%M:%S'))
-    ch.setFormatter(logging.Formatter(fmt=LOGFORMAT))
+    ch.setFormatter(logging.Formatter(fmt=config.LOGFORMAT))
     logger.addHandler(ch)
 else:
     logger = get_task_logger(__name__)
 
 logger.setLevel(logging.INFO)
 app = Flask('soda')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/flask.db'
+app.config.from_object(config)
 models.db.init_app(app)
 
-
-
-
-cel = celery.Celery(app.name,
-#                    backend='db+sqlite:///' + config.CELERY_TASK_DB, # disabled for now since we spurious db integrityerrors
-                    backend='amqp://guest@localhost//',
-                    broker='amqp://guest@localhost//')
+cel = celery.Celery(app.name)
 cel.conf.update(app.config)
-cel.conf.update(
-#    CELERY_RESULT_ENGINE_OPTIONS = { 'echo': True },
-    # explicitly accept pickle (which we need to be able to serialize
-    # python exceptions etc.) to get rid of security warnings at
-    # startup):
-    CELERYD_TASK_LOG_FORMAT = LOGFORMAT,
-    CELERYD_LOG_FORMAT = '%(asctime)s %(levelname)-7s <celery> %(message)s',
-    CELERY_ACCEPT_CONTENT = [ 'pickle', 'json', 'msgpack', 'yaml' ],
-    CELERY_QUEUES = (
-        kombu.Queue('default',
-                    kombu.Exchange('default'),
-                    routing_key='default'),    # >= 1 worker
-        # we have separate workers for register_request and other
-        # schedule tasks to be able to quickly respond to creation of
-        # new requests (by not blocking scheduler to block
-        # schedule_tasks and vice versa)
-        kombu.Queue('scheduler',
-                    kombu.Exchange('default'),
-                    routing_key='schedule'),   # == 1 worker
-        kombu.Queue('registrar',
-                    kombu.Exchange('default'),
-                    routing_key='register')    # == 1 worker
-    ),
-    CELERY_ROUTES = { 'soda.register_request_demo' : { 'queue' : 'registrar' },
-                      'soda.register_request' : { 'queue' : 'registrar' },
-                      'soda.schedule_tasks' : { 'queue' : 'scheduler' },
-                      'soda.schedule_join_staging_task' : { 'queue' : 'scheduler' },
-                      'soda.schedule_mark_request_deletable' : { 'queue' : 'scheduler' },
-                      'soda.schedule_submit_sizing_tasks' : { 'queue' : 'scheduler' } },
-    CELERY_DEFAULT_QUEUE = 'default',
-    CELERY_DEFAULT_EXCHANGE_TYPE = 'direct',
-    CELERY_DEFAULT_ROUTING_KEY = 'default'
-)
 
 
 class TaskFailure(Exception): pass
@@ -212,16 +170,6 @@ def register_request(openid, file_names):
     return r.uuid
 
 
-# How long a request should exist in the db after it is finished or
-# failed (in seconds). Only finished requests will keep reserving file
-# space until deleted. Any files solely belonging to failed or
-# deletable requests will be eligible for purging.
-#REQUEST_PINNING_TIME = 24 * 3600
-REQUEST_PINNING_TIME = 60
-FILE_SIZE_EXTRA = 256
-FILE_SIZE_WEIGHT = 1
-
-
 # raises OSError if failing to delete a file except when it does not exist
 # updates db
 def purge_files(min_size, purgable_files):
@@ -323,7 +271,7 @@ def finish_request(r):
     r.state = 'finished'
     notify_user(r, 'Request %s finished OK' % r)
     schedule_mark_request_deletable.apply_async(args=[r.uuid],
-                                                countdown=REQUEST_PINNING_TIME)
+                                                countdown=app.config['REQUEST_PINNING_TIME'])
 
 def staging_tasks_owned_by(r):
     tasks = cel_db_session.query(Task).\
@@ -342,7 +290,7 @@ def fail_request(r, msg):
         t.cancel()
     notify_user(r, msg)
     schedule_mark_request_deletable.apply_async(args=[r.uuid],
-                                                countdown=REQUEST_PINNING_TIME)
+                                                countdown=app.config['REQUEST_PINNING_TIME'])
 
 
 
@@ -530,7 +478,7 @@ def schedule_tasks():
     online_files = get_online_files()
     reserved_space = sum(sf.size for sf in reserved_files)
     used_space = sum(sf.size for sf in online_files)
-    available_space = config.STAGE_SPACE - used_space
+    available_space = app.config['STAGE_SPACE'] - used_space
     purgable_files = get_purgable_files()
     purgable_amount = sum(sf.size for sf in purgable_files)
 
@@ -538,7 +486,7 @@ def schedule_tasks():
         reserved_files.all()
     assert used_space >= 0, used_space
     assert reserved_space >= 0, (reserved_files, reserved_space)
-    assert purgable_amount <= config.STAGE_SPACE, (purgable_amount, config.STAGE_SPACE,
+    assert purgable_amount <= app.config['STAGE_SPACE'], (purgable_amount, app.config['STAGE_SPACE'],
                                             reserved_space, available_space)
     logger.debug('reserved files: %s' % ', '.join(sf.name for sf in reserved_files))
     logger.debug('online files: %s' % ', '.join(sf.name for sf in online_files))
@@ -547,8 +495,8 @@ def schedule_tasks():
     logger.info('total staging space: %d bytes, used: %d bytes, reserved: %d '
                 'bytes. Max %d bytes available for new requests (%d bytes '
                 'purgable)' % \
-                (config.STAGE_SPACE, used_space, reserved_space,
-                 config.STAGE_SPACE - reserved_space, purgable_amount))
+                (app.config['STAGE_SPACE'], used_space, reserved_space,
+                 app.config['STAGE_SPACE'] - reserved_space, purgable_amount))
     dispatch_tasks = True
     num_tasks_dispatched = 0
     num_tasks_failed = 0
@@ -556,7 +504,7 @@ def schedule_tasks():
 
     for rs in dispatchable_requests:
         try:
-            assert available_space >= 0, (config.STAGE_SPACE, reserved_space,
+            assert available_space >= 0, (app.config['STAGE_SPACE'], reserved_space,
                                           available_space)
             files_offline_not_being_staged = get_files_offline_not_being_staged(rs)
             logger.info('scheduling %s, available space %d bytes, offline files: %s' % \
@@ -589,13 +537,13 @@ def schedule_tasks():
         #    created -> failed,
         #    created -> dispatching,
         #    created -> finished:
-        if total_size > config.STAGE_SPACE:
+        if total_size > app.config['STAGE_SPACE']:
             logger.info('fast forwarding %s -> failed - since there is no way '
                          'it can be fulfilled (needs %d of %d bytes '
                          'available)' % \
-                         (rs.uuid, total_size, config.STAGE_SPACE))
+                         (rs.uuid, total_size, app.config['STAGE_SPACE']))
             fail_request(rs, '%s can not be fulfilled (needs %d of %d bytes '
-                         'available)' % (rs.uuid, total_size, config.STAGE_SPACE))
+                         'available)' % (rs.uuid, total_size, app.config['STAGE_SPACE']))
             num_tasks_failed += 1
         elif not files_offline_not_being_staged.first():
             if get_files_offline_being_staged(rs).first():
@@ -1014,11 +962,11 @@ class MarsRequest(object):
         param_target = params.get('target')
         if param_target:
             target = os.path.normpath(param_target)
-            if target.startswith(config.STAGEDIR + '/'):
+            if target.startswith(app.config['STAGEDIR'] + '/'):
                 params['target'] = "'%s'" % target
             else:
                 raise Exception('invalid path: %s - must be below %s' % \
-                                (target, config.STAGEDIR))
+                                (target, app.config['STAGEDIR']))
         self.verb = verb
         self.params = params
 
@@ -1111,9 +1059,12 @@ def estimate_size(file_name):
         logger.error('size is %d' % size)
         raise TaskFailure('size is %d' % size)
 
-    est_size = size * FILE_SIZE_WEIGHT + FILE_SIZE_EXTRA
-    logger.debug('MARS reported size: %d bytes, after compensating: size * %d + %d = %d' % \
-                 (size, FILE_SIZE_WEIGHT, FILE_SIZE_EXTRA, est_size))
+    est_size = size * app.config['FILE_SIZE_WEIGHT'] + \
+        app.config['FILE_SIZE_EXTRA']
+    logger.debug('MARS reported size: %d bytes, after compensating: size * '
+                 '%d + %d = %d' % \
+                 (size, app.config['FILE_SIZE_WEIGHT'],
+                  app.config['FILE_SIZE_EXTRA'], est_size))
     logger.info('size is %d' % est_size)
     return est_size
 
