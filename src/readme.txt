@@ -123,3 +123,9 @@ A complete (but dangerous) cleanup would be:
     amqp_list_q | amqp_del_q
     rm /tmp/flask.db *.state celery_task.db
     python -c 'import soda; soda.db.create_all()'
+
+A minimal cleanup is possible by only purging the entries in the SODA
+SQLite db. This is quicker than the above and you don't have to
+restart the web app and all the workers:
+
+    sqlite3 /tmp/flask.db 'delete from download_request; delete from request_files; delete from stagable_file; delete from task;'
