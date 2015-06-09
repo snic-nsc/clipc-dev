@@ -11,6 +11,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql import func
 from util import util
 import celery
+import config
 import errno
 import hashlib
 import logging
@@ -40,10 +41,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/flask.db'
 models.db.init_app(app)
 
 
-CELERY_TASK_DB = './celery_task.db'
+
 
 cel = celery.Celery(app.name,
-#                    backend='db+sqlite:///' + CELERY_TASK_DB, # disabled for now since we spurious db integrityerrors
+#                    backend='db+sqlite:///' + config.CELERY_TASK_DB, # disabled for now since we spurious db integrityerrors
                     backend='amqp://guest@localhost//',
                     broker='amqp://guest@localhost//')
 cel.conf.update(app.config)
@@ -83,14 +84,6 @@ cel.conf.update(
 
 
 class TaskFailure(Exception): pass
-
-
-
-STAGEDIR = os.path.realpath(os.getenv('STAGEDIR', os.getenv('TMPDIR', '/tmp')))
-# Assumes we own the whole filesystem. Possibly we should add a way to
-# reserve a percentage or static amount of STAGE_SPACE rather than use
-# all of it:
-STAGE_SPACE = int(util.df(STAGEDIR)['1-blocks'])
 
 
 @celery.signals.worker_init.connect
@@ -537,7 +530,7 @@ def schedule_tasks():
     online_files = get_online_files()
     reserved_space = sum(sf.size for sf in reserved_files)
     used_space = sum(sf.size for sf in online_files)
-    available_space = STAGE_SPACE - used_space
+    available_space = config.STAGE_SPACE - used_space
     purgable_files = get_purgable_files()
     purgable_amount = sum(sf.size for sf in purgable_files)
 
@@ -545,7 +538,7 @@ def schedule_tasks():
         reserved_files.all()
     assert used_space >= 0, used_space
     assert reserved_space >= 0, (reserved_files, reserved_space)
-    assert purgable_amount <= STAGE_SPACE, (purgable_amount, STAGE_SPACE,
+    assert purgable_amount <= config.STAGE_SPACE, (purgable_amount, config.STAGE_SPACE,
                                             reserved_space, available_space)
     logger.debug('reserved files: %s' % ', '.join(sf.name for sf in reserved_files))
     logger.debug('online files: %s' % ', '.join(sf.name for sf in online_files))
@@ -554,8 +547,8 @@ def schedule_tasks():
     logger.info('total staging space: %d bytes, used: %d bytes, reserved: %d '
                 'bytes. Max %d bytes available for new requests (%d bytes '
                 'purgable)' % \
-                (STAGE_SPACE, used_space, reserved_space,
-                 STAGE_SPACE - reserved_space, purgable_amount))
+                (config.STAGE_SPACE, used_space, reserved_space,
+                 config.STAGE_SPACE - reserved_space, purgable_amount))
     dispatch_tasks = True
     num_tasks_dispatched = 0
     num_tasks_failed = 0
@@ -563,7 +556,7 @@ def schedule_tasks():
 
     for rs in dispatchable_requests:
         try:
-            assert available_space >= 0, (STAGE_SPACE, reserved_space,
+            assert available_space >= 0, (config.STAGE_SPACE, reserved_space,
                                           available_space)
             files_offline_not_being_staged = get_files_offline_not_being_staged(rs)
             logger.info('scheduling %s, available space %d bytes, offline files: %s' % \
@@ -596,13 +589,13 @@ def schedule_tasks():
         #    created -> failed,
         #    created -> dispatching,
         #    created -> finished:
-        if total_size > STAGE_SPACE:
+        if total_size > config.STAGE_SPACE:
             logger.info('fast forwarding %s -> failed - since there is no way '
                          'it can be fulfilled (needs %d of %d bytes '
                          'available)' % \
-                         (rs.uuid, total_size, STAGE_SPACE))
+                         (rs.uuid, total_size, config.STAGE_SPACE))
             fail_request(rs, '%s can not be fulfilled (needs %d of %d bytes '
-                         'available)' % (rs.uuid, total_size, STAGE_SPACE))
+                         'available)' % (rs.uuid, total_size, config.STAGE_SPACE))
             num_tasks_failed += 1
         elif not files_offline_not_being_staged.first():
             if get_files_offline_being_staged(rs).first():
@@ -1021,11 +1014,11 @@ class MarsRequest(object):
         param_target = params.get('target')
         if param_target:
             target = os.path.normpath(param_target)
-            if target.startswith(STAGEDIR + '/'):
+            if target.startswith(config.STAGEDIR + '/'):
                 params['target'] = "'%s'" % target
             else:
                 raise Exception('invalid path: %s - must be below %s' % \
-                                (target, STAGEDIR))
+                                (target, config.STAGEDIR))
         self.verb = verb
         self.params = params
 
