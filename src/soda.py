@@ -6,10 +6,10 @@ from datetime import datetime
 from flask import Flask, jsonify, redirect, request, send_from_directory, \
     url_for
 from flask.ext.sqlalchemy import SQLAlchemy
-from signal import alarm, SIGALRM, signal
 from sqlalchemy import CheckConstraint, create_engine, or_
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql import func
+from util import util
 import celery
 import errno
 import hashlib
@@ -18,36 +18,8 @@ import kombu
 import os
 import os.path
 import re
-import select
 import simplejson as json
-import subprocess
-import tempfile
 import uuid
-
-# https://github.com/geopython/PyWPS/pull/26/files
-# http://prschmid.blogspot.se/2013/04/using-sqlalchemy-with-celery-tasks.html
-# http://stackoverflow.com/questions/16792032/sqlalchemy-session-issues-with-celery
-
-# disable db repeatable read to improve performance
-# FIXME: update _repr_ for all db model
-# FIXME: make sure logging from tasks prefixes with task id
-# TODO: provide user request cancellation (by providing a html link for that in the request page)
-# TODO: see if we can implement task cancellation with amqp
-# TODO: Make sure workers run as a separate user with restricted
-#       rights to reduce the amount of damage unknown input can cause
-# TODO: consistently handle unicode input
-
-# TODO: make acks_late=True default for all tasks with a single config
-#       rather than decorating each method
-# TODO: > 1 filesystems as cache space and possibly allow distributed
-#       staging workers (which would prevent using single system
-#       mutexes like semaphore or flock)
-# TODO: /soda/v1/api/doc
-# https://denibertovic.com/posts/celery-best-practices/
-# https://news.ycombinator.com/item?id=7909201
-# TODO: allow XML and HTML repsonses besides JSON
-
-
 
 # log to syslog: http://www.toforge.com/2011/06/celery-centralized-logging/
 LOGFORMAT='%(asctime)s %(levelname)-7s %(message)s'
@@ -109,47 +81,15 @@ cel.conf.update(
 )
 
 
-class CommandFailed(Exception): pass
 class TaskFailure(Exception): pass
 class UnknownTask(Exception): pass
-
-def df(mp):
-    # $ df -P --block-size=1 .
-    # Filesystem                     1-blocks       Used   Available Capacity Mounted on
-    # /dev/mapper/vg_vbox-lv_root 13613391872 2734968832 10180071424      22% /
-    #
-    # -> { 'Available': '22181310464', 'Used': '89328218112', 'Capacity': '81%',
-    #      'Filesystem': '/dev/mapper/kubuntu--vg-root',
-    #      '1-blocks': '117501927424', 'Mounted on': '/' }
-    cmd = [ 'df', '-P', '--block-size=1', mp ]
-    p = subprocess.Popen(cmd,
-                         shell=False,
-                         stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-    out, err = p.communicate()
-    rc = p.wait()
-    if rc != 0:
-        raise CommandFailed('%s failed: %s' % (' '.join(cmd), err))
-    header, row = out.splitlines()
-    cols = row.split()
-    split_count = len(cols) - 1
-    split_white_remove_empty = None
-    keys = header.split(split_white_remove_empty, split_count)
-    return dict(zip(keys, cols))
 
 
 STAGEDIR = os.path.realpath(os.getenv('STAGEDIR', os.getenv('TMPDIR', '/tmp')))
 # Assumes we own the whole filesystem. Possibly we should add a way to
 # reserve a percentage or static amount of STAGE_SPACE rather than use
 # all of it:
-STAGE_SPACE = int(df(STAGEDIR)['1-blocks'])
-
-
-def create_tempfile():
-    fd, file_name = tempfile.mkstemp()
-    os.close(fd)
-    return file_name
+STAGE_SPACE = int(util.df(STAGEDIR)['1-blocks'])
 
 
 @celery.signals.worker_init.connect
@@ -436,9 +376,9 @@ def purge_files(min_size, purgable_files):
             logger.debug('deleting %s' % sf)
             # raises OSError on any error except if not existing:
             if sf.staging_task:
-                unlink(sf.staging_task.path_stdout)
-                unlink(sf.staging_task.path_stderr)
-            is_deleted = unlink(sf.path_staged())
+                util.unlink(sf.staging_task.path_stdout)
+                util.unlink(sf.staging_task.path_stderr)
+            is_deleted = util.unlink(sf.path_staged())
             if not is_deleted:
                 logger.warn('tried purging staged file %s - but it is already '
                             'gone' % sf)
@@ -610,8 +550,8 @@ def schedule_join_staging_task(task_id):
             sf.state = 'online'
             logger.debug('deregistering %s from %s' % (sf.staging_task, sf))
             cel_db_session.delete(sf.staging_task)
-            unlink(sf.staging_task.path_stdout)
-            unlink(sf.staging_task.path_stderr)
+            util.unlink(sf.staging_task.path_stdout)
+            util.unlink(sf.staging_task.path_stderr)
             sf.staging_task = None
             assert sf.staging_task is None, sf
             logger.debug('db commit')
@@ -850,8 +790,8 @@ def schedule_tasks():
                             (rs.uuid,
                              ', '.join(sf.name for sf in files_offline_not_being_staged)))
                 for sf in files_offline_not_being_staged:
-                    path_stdout = create_tempfile()
-                    path_stderr = create_tempfile()
+                    path_stdout = util.create_tempfile()
+                    path_stderr = util.create_tempfile()
                     # we'd like to chain the
                     # schedule_join_staging_tasks here rather than
                     # calling it from the stage_file task, but then we
@@ -1170,92 +1110,6 @@ def http_render_static(uuid, file_name):
     assert r in f.requests, (r, f)
     return send_from_directory(f.path, f.name)
 
-def fd_read_outerr(fd_out, fd_err):
-    rlist = [fd_out, fd_err]
-    while rlist:
-        rready, _, _ = select.select(rlist, [], [])
-        for fd in rready:
-            data = os.read(fd.fileno(), select.PIPE_BUF) # read at most PIPE_BUF bytes
-            if data:
-                yield fd, data
-            else:
-                rlist.remove(fd)
-
-class TimeoutException(Exception): pass
-
-def raise_timeout_exception(signum, frame):
-    raise TimeoutException
-
-def timed_wait(p, timeout):
-    signal(SIGALRM, raise_timeout_exception)
-    alarm(timeout)
-    rc = p.wait()
-    alarm(0)
-    return rc
-
-
-
-def exec_proc(cmd, stdin=None, term_timeout=5):
-
-    assert type(cmd) is list, 'cmd %s' % cmd
-    assert all(type(x) is str for x in cmd), 'cmd %s' % cmd
-    assert stdin is None or type(stdin) is str or type(stdin) is unicode, 'stdin %s' % type(stdin)
-    assert term_timeout >= 0, 'term_timeout %s' % term_timeout
-
-    # FIXME: use os.devnull if stdin/stdout/stderr is unused, and
-    # remember to close it when returning
-
-    logger.debug('executing %s' % cmd)
-
-    LINE_BUFFERED = 1
-    p = subprocess.Popen(cmd,
-                         shell=False,
-                         bufsize=LINE_BUFFERED,
-                         stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-    try:
-        logger.debug('pid is %d' % p.pid)
-        # FIXME: split into digestable chunks and use select,
-        # otherwise we may deadlock, but should be alright for <= 4096
-        # bytes:
-        if stdin is not None:
-            p.stdin.write(stdin)
-            p.stdin.flush()
-            p.stdin.close()
-        for fd, data in fd_read_outerr(p.stdout, p.stderr):
-            # FIXME: merge data not containing newline into lines
-            for l in data.splitlines(True):
-                fileno = 1 if fd == p.stdout else 2
-                yield None, fileno, l
-        rc = p.wait()
-    except Exception, e:
-        logger.error(e)
-        logger.warn('terminating process %s' % p)
-        # FIXME: make sure killing this MARS process also kills the
-        # underlying tunnel:
-        p.terminate()
-        try:
-            rc = timed_wait(p, term_timeout)
-        except TimeoutException:
-            logger.warn('timed out (after %d s.) waiting for process %s to '
-                        'terminate - sending SIGKILL' % ( term_timeout, p ))
-            p.kill()
-            rc = p.wait()
-
-    yield rc, None, None
-
-
-def unlink(file_name):
-    try:
-        os.unlink(file_name)
-        return True
-    except OSError, e:
-        if e.errno != errno.ENOENT:
-            raise
-        return False
-
-
 #    params = { 'class'    : 'op',
 #               'stream'   : 'oper',
 #               'expver'   : 'c11a',
@@ -1324,7 +1178,7 @@ def stage_file(file_name, target_dir, path_out, path_err):
 
         with open(path_out, 'w') as f_out:
             with open(path_err, 'w') as f_err:
-                for rc,fd,l in exec_proc([ 'mars' ], stdin=str(mars_request)):
+                for rc,fd,l in util.exec_proc([ 'mars' ], logger, stdin=str(mars_request)):
                     if fd is not None and l is not None:
                         if fd == 1:
                             logger.debug('fd=%s, l=%s' % (fd, l.strip() if l else l))
@@ -1339,7 +1193,7 @@ def stage_file(file_name, target_dir, path_out, path_err):
                     f.close()
         if rc != 0:
             logger.debug('removing temp file %s' % tmp_target)
-            unlink(tmp_target) # FIXME: use try...finally
+            util.unlink(tmp_target) # FIXME: use try...finally
             raise TaskFailure('mars returned %d' % rc)
 
         end_target = os.path.join(target_dir, file_name)
@@ -1371,7 +1225,7 @@ def estimate_size(file_name):
     mars_request.params['OUTPUT'] = 'COST'
     logger.debug('mars_request: %s' % mars_request)
 
-    for rc,fd,l in exec_proc([ 'mars' ], stdin=str(mars_request)):
+    for rc,fd,l in util.exec_proc([ 'mars' ], logger, stdin=str(mars_request)):
         logger.debug('rc = %s, fd = %s, l = %s' % (rc, fd, l.strip() if l else l))
         if size is None and fd == 1:
             m = re_size.match(l)
