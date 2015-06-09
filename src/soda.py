@@ -1081,7 +1081,9 @@ def mars():
         raise HTTPBadRequest('missing MARS request verb (string)')
     if verb != 'RETRIEVE':
         raise HTTPBadRequest('only RETRIEVE is supported for the moment')
-    params = dict((k.upper(),v) for k,v in r.get('params').iteritems())
+    # NOTE: v.upper() is safe for all except strings e.g. not TARGET,
+    # but that one we ignore anyway:
+    params = dict((k.upper(),v.upper()) for k,v in r.get('params').iteritems())
     if not params:
         raise HTTPBadRequest('missing params (dict of string) - any valid '
                              'MARS request keyword')
