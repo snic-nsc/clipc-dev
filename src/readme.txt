@@ -55,7 +55,7 @@ To test this works:
 
 9. initialize database schemas:
 
-   $ python -c 'import soda; soda.db.create_all()'
+   $ python -c 'import soda; soda.models.db.init_app(soda.app); soda.models.db.create_all()'
 
 
 STARTING UP
@@ -115,14 +115,16 @@ CLEANING STATE
 
 5. Finally recreate the database schemas:
 
-   python -c 'import soda; soda.db.create_all()'
+   python -c 'import soda; soda.models.db.init_app(soda.app); soda.models.db.create_all()'
+
 
 A complete (but dangerous) cleanup would be:
 
-    celery -f -A soda.cel purge
-    amqp_list_q | amqp_del_q
-    rm /tmp/flask.db *.state celery_task.db
-    python -c 'import soda; soda.db.create_all()'
+   celery -f -A soda.cel purge
+   amqp_list_q | amqp_del_q
+   rm /tmp/flask.db *.state celery_task.db
+   python -c 'import soda; soda.models.db.init_app(soda.app); soda.models.db.create_all()'
+
 
 A minimal cleanup is possible by only purging the entries in the SODA
 SQLite db. This is quicker than the above and you don't have to
