@@ -100,8 +100,8 @@ class Task(db.Model):
     def __repr__(self):
         return '%s(uuid=%s, status=%s, path_stdout=%s, path_stderr=%s)' % \
             ( type(self).__name__,
-              self.future().status,
               self.uuid,
+              self.future().status,
               self.path_stdout,
               self.path_stderr )
 
