@@ -52,7 +52,7 @@ class MarsRequest(object):
 #               'levelist' : '2',
 #               'param'    : '11.1' }
 def create_mars_request(verb, file_name, target=None):
-    sf = tasks.cel_db_session.query(StagableFile).get(file_name)
+    sf = tasks.session.query(StagableFile).get(file_name)
     logger.debug('creating MARS request from %s' % sf)
     params = {}
     for l in sf.params.split(',\n'):

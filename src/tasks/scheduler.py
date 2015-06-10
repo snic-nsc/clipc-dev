@@ -52,7 +52,7 @@ def purge_files(min_size, purgable_files):
 # value):
 @celery.task(acks_late=True, ignore_results=True)
 def schedule_submit_sizing_tasks(r_uuid):
-    files_unknown_size = tasks.cel_db_session.query(StagableFile).\
+    files_unknown_size = tasks.session.query(StagableFile).\
         join(StagableFile.requests).\
         filter(DownloadRequest.uuid == r_uuid).\
         filter(StagableFile.size == None).\
@@ -63,7 +63,7 @@ def schedule_submit_sizing_tasks(r_uuid):
         async_result = estimate_size.delay(sf.name)
         sf.sizing_task = Task(async_result.id)
         logger.debug('submitted: %s' % sf.sizing_task)
-    tasks.cel_db_session.commit()
+    tasks.session.commit()
 
 
 # wait for the result of all sizing tasks, update the db with the
@@ -92,17 +92,17 @@ def join_sizing_tasks(files):
             finally:
                 logger.debug('unregistering size estimation task %s' % \
                              (sf.sizing_task))
-                tasks.cel_db_session.delete(sf.sizing_task)
+                tasks.session.delete(sf.sizing_task)
                 sf.sizing_task = None
 
 
 @celery.task(acks_late=True, ignore_results=True)
 def schedule_mark_request_deletable(r_uuid):
     try:
-        r = tasks.cel_db_session.query(DownloadRequest).get(r_uuid)
+        r = tasks.session.query(DownloadRequest).get(r_uuid)
         logger.info('marking %s request %s as deletable' % (r.state, r_uuid))
         r.is_deletable = True
-        tasks.cel_db_session.commit()
+        tasks.session.commit()
     finally:
         # since there might be pending requests that wait for space to
         # be freed up:
@@ -123,7 +123,7 @@ def finish_request(r):
 
 
 def staging_tasks_owned_by(r):
-    res = tasks.cel_db_session.query(Task).\
+    res = tasks.session.query(Task).\
         join(StagableFile.staging_task).\
         join(StagableFile.requests).\
         filter(~StagableFile.requests.any(DownloadRequest.uuid != r.uuid))
@@ -160,7 +160,7 @@ def finishable_requests(sf):
 
 
 def dispatched_requests(sf):
-    res = tasks.cel_db_session.query(DownloadRequest).\
+    res = tasks.session.query(DownloadRequest).\
         join(DownloadRequest.files).\
         filter(StagableFile.name == sf.name).\
         filter(DownloadRequest.state == 'dispatched')
@@ -192,7 +192,7 @@ def update_size_if_different(sf):
 def schedule_join_staging_task(task_id):
     # the task entry might not have been commited into the db yet
     while True:
-        staging_task = tasks.cel_db_session.query(Task).get(task_id)
+        staging_task = tasks.session.query(Task).get(task_id)
         if staging_task:
             break
         time.sleep(0.1)
@@ -210,13 +210,13 @@ def schedule_join_staging_task(task_id):
             logger.info('%s is online' % sf.name)
             sf.state = 'online'
             logger.debug('deregistering %s from %s' % (sf.staging_task, sf))
-            tasks.cel_db_session.delete(sf.staging_task)
+            tasks.session.delete(sf.staging_task)
             util.unlink(sf.staging_task.path_stdout)
             util.unlink(sf.staging_task.path_stderr)
             sf.staging_task = None
             assert sf.staging_task is None, sf
             logger.debug('db commit')
-            tasks.cel_db_session.commit() # verify that we really need this - but it's important that the query below includes r
+            tasks.session.commit() # verify that we really need this - but it's important that the query below includes r
             for r in finishable_requests(sf):
                 logger.info('request %s finished' % r.uuid)
                 finish_request(r)
@@ -225,25 +225,25 @@ def schedule_join_staging_task(task_id):
         # consider resubmitting the task a limited amount since it
         # should only fail in rare cases
         logger.debug('deregistering %s from %s' % (sf.staging_task, sf))
-        tasks.cel_db_session.delete(staging_task)
+        tasks.session.delete(staging_task)
         sf.staging_task = None
         assert sf.staging_task is None, sf
         logger.debug('db commit')
-        tasks.cel_db_session.commit()
+        tasks.session.commit()
         for r in dispatched_requests(sf):
             logger.info('request %s failed' % r.uuid)
             fail_request(r, 'Staging of %s failed: %s' % (sf, str(e)))
     finally:
-        tasks.cel_db_session.commit()
+        tasks.session.commit()
 
 
 def get_online_files():
-    return tasks.cel_db_session.query(StagableFile).\
+    return tasks.session.query(StagableFile).\
         filter(StagableFile.state == 'online')
 
 
 def get_reserved_files():
-    return tasks.cel_db_session.query(StagableFile).\
+    return tasks.session.query(StagableFile).\
         join(StagableFile.requests).\
         filter(~DownloadRequest.is_deletable).\
         filter(DownloadRequest.state.in_([ 'dispatched', 'finished' ]))
@@ -254,7 +254,7 @@ def get_reserved_files():
 # the db. A failed request will be present in the db until deleted,
 # but its files won't be reserved.
 def get_reserved_space():
-    reserved_space = tasks.cel_db_session.query(func.sum(StagableFile.size)).\
+    reserved_space = tasks.session.query(func.sum(StagableFile.size)).\
         join(StagableFile.requests).\
         filter(~DownloadRequest.is_deletable).\
         filter(DownloadRequest.state.in_([ 'dispatched', 'finished' ])).\
@@ -268,12 +268,12 @@ def get_reserved_space():
 # return all StagableFile where either it is an orphan belonging to no
 # request, or all its requests are either deletable or failed
 def get_purgable_files():
-    q_files_all_requests_failed_or_deletable = tasks.cel_db_session.query(StagableFile).\
+    q_files_all_requests_failed_or_deletable = tasks.session.query(StagableFile).\
         join(StagableFile.requests).\
         filter(StagableFile.state == 'online').\
         filter(~StagableFile.requests.any(or_(~DownloadRequest.state == 'failed',
                                                ~DownloadRequest.is_deletable)))
-    q_files_no_requests = tasks.cel_db_session.query(StagableFile).\
+    q_files_no_requests = tasks.session.query(StagableFile).\
         filter(StagableFile.state == 'online').\
         filter(~StagableFile.requests.any())
     purgable_files = q_files_all_requests_failed_or_deletable.\
@@ -293,14 +293,14 @@ def get_purgable_files():
 
 
 def get_dispatchable_requests():
-    return tasks.cel_db_session.query(DownloadRequest).\
+    return tasks.session.query(DownloadRequest).\
         filter(DownloadRequest.state == 'created').\
         filter(~DownloadRequest.is_deletable).\
         order_by(DownloadRequest.time_created)
 
 
 def get_files_offline_not_being_staged(r):
-    return tasks.cel_db_session.query(StagableFile).\
+    return tasks.session.query(StagableFile).\
         join(DownloadRequest.files).\
         filter(DownloadRequest.uuid == r.uuid).\
         filter(StagableFile.state == 'offline').\
@@ -308,7 +308,7 @@ def get_files_offline_not_being_staged(r):
 
 
 def get_files_offline_being_staged(r):
-    res = tasks.cel_db_session.query(StagableFile).\
+    res = tasks.session.query(StagableFile).\
         join(DownloadRequest.files).\
         filter(DownloadRequest.uuid == r.uuid).\
         filter(StagableFile.state == 'offline').\
@@ -433,7 +433,7 @@ def schedule_tasks():
                                 'belonging to files that have been '
                                 'purged: %s' % \
                                 ', '.join(x.uuid for x in requests_to_delete))
-                    tasks.cel_db_session.query(DownloadRequest).\
+                    tasks.session.query(DownloadRequest).\
                         filter(DownloadRequest.uuid.in_(x.uuid for x in requests_to_delete)).\
                         delete(synchronize_session='fetch')
                 if offline_size > available_space:
@@ -484,7 +484,7 @@ def schedule_tasks():
                     # IMPORTANT: commit immediately since stage_file
                     # calls schedule_join_staging_tasks which looks up
                     # the task in the db:
-                    tasks.cel_db_session.commit()
+                    tasks.session.commit()
                     logger.info('=> staging task for %s is %s' % \
                                 (sf.name, sf.staging_task.uuid))
                 available_space -= offline_size
@@ -500,4 +500,4 @@ def schedule_tasks():
     logger.info('scheduling iteration completed, %d tasks dispatched, %d '
                 'tasks failed, %d tasks deferred' % \
                 (num_tasks_dispatched, num_tasks_failed, num_tasks_deferred))
-    tasks.cel_db_session.commit()
+    tasks.session.commit()
