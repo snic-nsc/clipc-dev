@@ -354,6 +354,7 @@ def schedule_tasks():
     num_tasks_dispatched = 0
     num_tasks_failed = 0
     num_tasks_deferred = 0
+    consumed_space = 0
 
     for rs in dispatchable_requests:
         try:
@@ -380,8 +381,8 @@ def schedule_tasks():
             files_offline_not_being_staged
         offline_size = sum(f.size for f in files_offline_not_being_staged)
         total_size = sum(f.size for f in rs.files)
-        logger.debug('total request size: %d bytes, %d offline bytes' % \
-                     (total_size, offline_size))
+        logger.info('total request size: %d bytes, %d offline bytes' % \
+                    (total_size, offline_size))
         # if staging fails any later request will we must make sure
         # either to fail any later requests for that file
 
@@ -487,6 +488,7 @@ def schedule_tasks():
                     tasks.session.commit()
                     logger.info('=> staging task for %s is %s' % \
                                 (sf.name, sf.staging_task.uuid))
+                consumed_space += offline_size
                 available_space -= offline_size
                 rs.state = 'dispatched'
                 num_tasks_dispatched += 1
@@ -498,6 +500,7 @@ def schedule_tasks():
             num_tasks_deferred += 1
 
     logger.info('scheduling iteration completed, %d tasks dispatched, %d '
-                'tasks failed, %d tasks deferred' % \
-                (num_tasks_dispatched, num_tasks_failed, num_tasks_deferred))
+                'tasks failed, %d tasks deferred. Consumed space %d bytes' % \
+                (num_tasks_dispatched, num_tasks_failed, num_tasks_deferred,
+                 consumed_space))
     tasks.session.commit()
