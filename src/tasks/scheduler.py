@@ -388,7 +388,7 @@ def schedule_tasks():
         # fastforward all dispatchable zero cost requests and any
         # requests that is impossible to fulfill:
         #    created -> failed,
-        #    created -> dispatching,
+        #    created -> dispatched,
         #    created -> finished:
         if total_size > config.STAGE_SPACE:
             logger.info('fast forwarding %s -> failed - since there is no way '
@@ -400,10 +400,10 @@ def schedule_tasks():
             num_tasks_failed += 1
         elif not files_offline_not_being_staged.first():
             if get_files_offline_being_staged(rs).first():
-                logger.info('fast forwarding %s -> dispatching - since it '
+                logger.info('fast forwarding %s -> dispatched - since it '
                              'fully overlaps with staging tasks in '
                              'progress' % rs.uuid)
-                rs.state = 'dispatching'
+                rs.state = 'dispatched'
                 num_tasks_dispatched += 1
             else:
                 # this should not fail unless db is being concurrently
