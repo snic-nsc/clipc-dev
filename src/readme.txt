@@ -62,9 +62,9 @@ STARTING UP
 ===========
 
 STAGEDIR=/tmp/soda python soda.py
-celery --no-color -c1 -n registrar --app=soda.cel -Q registrar worker --loglevel=warning --statedb=registrar.state -- celeryd.prefetch_multiplier=1
-celery --no-color -c1 -n scheduler --app=soda.cel -Q scheduler worker --loglevel=warning --statedb=scheduler.state -- celeryd.prefetch_multiplier=1
-celery --no-color -c1 -n worker1   --app=soda.cel -Q default worker   --loglevel=warning --statedb=worker1.state   -- celeryd.prefetch_multiplier=1
+celery --no-color -c1 -n registrar --app=tasks.cel -Q registrar worker --loglevel=warning --statedb=registrar.state -- celeryd.prefetch_multiplier=1
+celery --no-color -c1 -n scheduler --app=tasks.cel -Q scheduler worker --loglevel=warning --statedb=scheduler.state -- celeryd.prefetch_multiplier=1
+celery --no-color -c1 -n worker1   --app=tasks.cel -Q default worker   --loglevel=warning --statedb=worker1.state   -- celeryd.prefetch_multiplier=1
 
 where the queues registrar and scheduler must have one and only one
 worker, but the default can have one or more workers assigned to it.
@@ -79,7 +79,7 @@ CLEANING STATE
 
 2. Delete celery queues:
 
-   celery -f -A soda.cel purge
+   celery -f -A tasks.cel purge
 
 3. Delete the web application database and all celery state files:
 
@@ -120,7 +120,7 @@ CLEANING STATE
 
 A complete (but dangerous) cleanup would be:
 
-   celery -f -A soda.cel purge
+   celery -f -A tasks.cel purge
    amqp_list_q | amqp_del_q
    rm /tmp/flask.db *.state celery_task.db
    python -c 'import soda; soda.models.db.init_app(soda.app); soda.models.db.create_all()'

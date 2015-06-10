@@ -1,9 +1,11 @@
+from __future__ import absolute_import
 import kombu
 import os
 from util import util
 
+
 # log to syslog: http://www.toforge.com/2011/06/celery-centralized-logging/
-LOGFORMAT='%(asctime)s %(levelname)-7s %(message)s'
+LOGFORMAT = '%(asctime)s %(levelname)-7s %(message)s'
 
 #CELERY_RESULT_ENGINE_OPTIONS = { 'echo': True }
 
@@ -29,12 +31,12 @@ CELERY_QUEUES = (
                 kombu.Exchange('default'),
                 routing_key='register')    # == 1 worker
     )
-CELERY_ROUTES = { 'soda.register_request_demo' : { 'queue' : 'registrar' },
-                  'soda.register_request' : { 'queue' : 'registrar' },
-                  'soda.schedule_tasks' : { 'queue' : 'scheduler' },
-                  'soda.schedule_join_staging_task' : { 'queue' : 'scheduler' },
-                  'soda.schedule_mark_request_deletable' : { 'queue' : 'scheduler' },
-                  'soda.schedule_submit_sizing_tasks' : { 'queue' : 'scheduler' } }
+CELERY_ROUTES = { 'tasks.registrar.register_request_demo' : { 'queue' : 'registrar' },
+                  'tasks.registrar.register_request' : { 'queue' : 'registrar' },
+                  'tasks.scheduler.schedule_tasks' : { 'queue' : 'scheduler' },
+                  'tasks.scheduler.schedule_join_staging_task' : { 'queue' : 'scheduler' },
+                  'tasks.scheduler.schedule_mark_request_deletable' : { 'queue' : 'scheduler' },
+                  'tasks.scheduler.schedule_submit_sizing_tasks' : { 'queue' : 'scheduler' } }
 CELERY_DEFAULT_QUEUE = 'default'
 CELERY_DEFAULT_EXCHANGE_TYPE = 'direct'
 CELERY_DEFAULT_ROUTING_KEY = 'default'
