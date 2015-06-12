@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import celery
+import celery.signals
 import config
 import logging
 from celery.utils.log import get_task_logger
