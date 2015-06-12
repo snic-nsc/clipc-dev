@@ -20,23 +20,16 @@ CELERY_QUEUES = (
     kombu.Queue('default',
                 kombu.Exchange('default'),
                 routing_key='default'),    # >= 1 worker
-    # we have separate workers for register_request and other schedule
-    # tasks to be able to quickly respond to creation of new requests
-    # (by not blocking scheduler to block schedule_tasks and vice
-    # versa)
     kombu.Queue('scheduler',
                 kombu.Exchange('default'),
-                routing_key='schedule'),   # == 1 worker
-    kombu.Queue('registrar',
-                kombu.Exchange('default'),
-                routing_key='register')    # == 1 worker
+                routing_key='schedule')    # == 1 worker
     )
-CELERY_ROUTES = { 'tasks.registrar.register_request_demo' : { 'queue' : 'registrar' },
-                  'tasks.registrar.register_request' : { 'queue' : 'registrar' },
+CELERY_ROUTES = { 'tasks.scheduler.register_request_demo' : { 'queue' : 'scheduler' },
+                  'tasks.scheduler.register_request' : { 'queue' : 'scheduler' },
                   'tasks.scheduler.schedule_tasks' : { 'queue' : 'scheduler' },
                   'tasks.scheduler.schedule_join_staging_task' : { 'queue' : 'scheduler' },
-                  'tasks.scheduler.schedule_mark_request_deletable' : { 'queue' : 'scheduler' },
-                  'tasks.scheduler.schedule_submit_sizing_tasks' : { 'queue' : 'scheduler' } }
+                  'tasks.scheduler.schedule_mark_request_deletable' : { 'queue' : 'scheduler' } }
+
 CELERY_DEFAULT_QUEUE = 'default'
 CELERY_DEFAULT_EXCHANGE_TYPE = 'direct'
 CELERY_DEFAULT_ROUTING_KEY = 'default'

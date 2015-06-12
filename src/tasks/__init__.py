@@ -30,8 +30,7 @@ def update_sent_state(sender=None, body=None, **kwargs):
 
 
 cel = celery.Celery('soda',
-                    include=['tasks.registrar',
-                             'tasks.scheduler',
+                    include=['tasks.scheduler',
                              'tasks.worker'])
 cel.config_from_object(config)
 logger = get_task_logger('soda')

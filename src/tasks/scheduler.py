@@ -14,6 +14,65 @@ from tasks.worker import estimate_size, stage_file
 from util import util
 
 
+@celery.task(acks_late=True, ignore_results=True)
+def register_request_demo(uuid, openid, file_to_query):
+    r = DownloadRequest(uuid, openid)
+    logger.debug('created new request %s' % r)
+    file_names = file_to_query.keys()
+    registered_files = tasks.session.query(StagableFile).\
+        filter(StagableFile.name.in_(file_names))
+    logger.debug('registered files: %s' % registered_files.all())
+    new_file_names = set(file_names) - set(x.name for x in registered_files)
+    logger.debug('new file names: %s' % new_file_names)
+    new_files = [ StagableFile(file_name, file_to_query[file_name]) for file_name in new_file_names ]
+    logger.debug('new files: %s' % new_files)
+    registered_files.update(
+        { StagableFile.request_count : StagableFile.request_count  + 1 },
+        synchronize_session=False)
+    r.files.extend(registered_files)
+    r.files.extend(new_files)
+    # This won't throw an integrityerror as long as this task is
+    # single threaded. If not, there's always a risk that one or more
+    # identical StagableFile may be inserted concurrently.
+    tasks.session.add(r)
+    tasks.session.commit()
+    logger.info('registered request %s openid=%s, file_names=%s '
+                '(unregistered=%s)' % \
+                (r.uuid, openid, file_names, new_file_names))
+    submit_sizing_tasks(r.uuid)
+    logger.debug('=> invoking scheduler')
+    schedule_tasks.delay()
+
+
+@celery.task(acks_late=True, ignore_results=True)
+def register_request(uuid, openid, file_names):
+    r = DownloadRequest(uuid, openid)
+    logger.debug('created new request %s' % r)
+    registered_files = tasks.session.query(StagableFile).\
+        filter(StagableFile.name.in_(file_names))
+    logger.debug('registered files: %s' % registered_files.all())
+    new_file_names = set(file_names) - set(x.name for x in registered_files)
+    logger.debug('new file names: %s' % new_file_names)
+    new_files = [ StagableFile(file_name) for file_name in new_file_names ]
+    logger.debug('new files: %s' % new_files)
+    registered_files.update(
+        { StagableFile.request_count : StagableFile.request_count  + 1 },
+        synchronize_session=False)
+    r.files.extend(registered_files)
+    r.files.extend(new_files)
+    # This won't throw an integrityerror as long as this task is
+    # single threaded. If not, there's always a risk that one or more
+    # identical StagableFile may be inserted concurrently.
+    tasks.session.add(r)
+    tasks.session.commit()
+    logger.info('registered request %s for openid=%s, file_names=%s '
+                '(unregistered=%s)' % \
+                (r.uuid, openid, file_names, new_file_names))
+    submit_sizing_tasks(r.uuid)
+    logger.debug('=> invoking scheduler')
+    schedule_tasks.delay()
+
+
 # raises OSError if failing to delete a file except when it does not
 # exist updates db
 def purge_files(min_size, purgable_files):
@@ -50,8 +109,7 @@ def purge_files(min_size, purgable_files):
 # file and will be updated with the actual size once the file has
 # actually been staged (every time it differs from the registered
 # value):
-@celery.task(acks_late=True, ignore_results=True)
-def schedule_submit_sizing_tasks(r_uuid):
+def submit_sizing_tasks(r_uuid):
     files_unknown_size = tasks.session.query(StagableFile).\
         join(StagableFile.requests).\
         filter(DownloadRequest.uuid == r_uuid).\

@@ -62,12 +62,13 @@ STARTING UP
 ===========
 
 STAGEDIR=/tmp/soda python soda.py
-celery --no-color -c1 -n registrar --app=tasks.cel -Q registrar worker --loglevel=warning --statedb=registrar.state -- celeryd.prefetch_multiplier=1
 celery --no-color -c1 -n scheduler --app=tasks.cel -Q scheduler worker --loglevel=warning --statedb=scheduler.state -- celeryd.prefetch_multiplier=1
 celery --no-color -c1 -n worker1   --app=tasks.cel -Q default worker   --loglevel=warning --statedb=worker1.state   -- celeryd.prefetch_multiplier=1
 
-where the queues registrar and scheduler must have one and only one
-worker, but the default can have one or more workers assigned to it.
+where the scheduler queue must have one and only one worker to avoid
+errors from race conditions due to the db being modified concurrently
+during scheduling operations. The default queue can have any number of
+workers.
 
 CLEANING STATE
 ==============
@@ -92,7 +93,7 @@ CLEANING STATE
    1. create a shell script or function amqp_list_q:
 
       function amqp_list_q() {
-         sudo rabbitmqctl list_queues | awk '$1 !~ "^(celery|default|registrar|scheduler|Listing|\\.\\.\\.)" { print $1 }'
+         sudo rabbitmqctl list_queues | awk '$1 !~ "^(celery|default|scheduler|Listing|\\.\\.\\.)" { print $1 }'
       }
 
    2. create a python program amqp_del_q:

@@ -33,8 +33,8 @@ class DownloadRequest(db.Model):
                       nullable=False, default='created')
     is_deletable = db.Column(db.Boolean, default=False, nullable=False)
 
-    def __init__(self, openid):
-        self.uuid = uuid.uuid4().get_hex()
+    def __init__(self, uuid, openid):
+        self.uuid = uuid
         self.openid = openid
         self.time_created = datetime.utcnow()
 

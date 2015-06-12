@@ -2,17 +2,16 @@ from __future__ import absolute_import
 import config
 import hashlib
 import logging
-import models
 import os.path
 import simplejson as json
+import tasks
+import uuid
 from collections import OrderedDict
 from flask import Flask, jsonify, redirect, request, send_from_directory, \
     url_for
-from models import db, DownloadRequest, StagableFile, Task
-from sqlalchemy import or_
+from models import db, DownloadRequest, StagableFile
 from sqlalchemy.sql import func
-from tasks.registrar import register_request, register_request_demo
-from tasks.scheduler import schedule_submit_sizing_tasks, schedule_mark_request_deletable, schedule_join_staging_task, schedule_tasks
+from tasks.scheduler import register_request, register_request_demo
 
 
 app = Flask('soda')
@@ -138,33 +137,12 @@ def http_create_request_demo():
                              'request: %s' % request, payload=str(request))
 
     file_to_query = { name : ',\n'.join('%s = %s' % (k,v) for k,v in params.iteritems()) }
-    logger.debug('=> registering new request: openid=%s, file_to_query=%s' % \
-                 (openid, file_to_query))
-
-    # the reason we run this as a worker job (which only has one
-    # worker) is to guarantee it is _not_ run concurrently. It makes
-    # it less likely we get more than one identical staging/sizing
-    # task running. We still can get orphan staging tasks if the
-    # worker crasches in the wrong place - before it's been registered
-    # in the sql db. But we don't risk each staging task being subject
-    # to the race condition that occurs in the window between checking
-    # for the existence of an existing task and starting a new task
-    # (which can lead to > 1 identical tasks being executed in a
-    # concurrent situation). This register_request task is
-    # expected to be really quick so it's not expected to be a
-    # performance issue.
-    #
-    # create request and submit sizing tasks for unknown file_names
-    r_uuid = register_request_demo.delay(openid, file_to_query).get()
-    logger.info('<= registered new request %s for openid=%s, file_to_query=%s' % \
-                (r_uuid, openid, file_to_query))
-    logger.debug('=> submitting sizing tasks for request id %s' % r_uuid)
-    schedule_submit_sizing_tasks.delay(r_uuid)
-    logger.debug('=> invoking scheduler')
-    schedule_tasks.delay()
+    r_uuid = uuid.uuid4().get_hex()
+    logger.debug('=> registering new request: uuid=%s openid=%s, '
+                 'file_to_query=%s' % (r_uuid, openid, file_to_query))
+    register_request_demo.apply_async((r_uuid, openid, file_to_query),
+                                      task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
-
-
 
 
 # FIXME: requires authorization (used by the esg node)
@@ -187,31 +165,10 @@ def http_create_request():
                              payload=str(request))
     assert type(file_names) is list, file_names
     assert all(type(x) is str or type(x) is unicode for x in file_names)
-
-    logger.debug('=> registering new request: openid=%s, file_names=%s' % \
-                 (openid, file_names))
-
-    # the reason we run this as a worker job (which only has one
-    # worker) is to guarantee it is _not_ run concurrently. It makes
-    # it less likely we get more than one identical staging/sizing
-    # task running. We still can get orphan staging tasks if the
-    # worker crasches in the wrong place - before it's been registered
-    # in the sql db. But we don't risk each staging task being subject
-    # to the race condition that occurs in the window between checking
-    # for the existence of an existing task and starting a new task
-    # (which can lead to > 1 identical tasks being executed in a
-    # concurrent situation). This register_request task is
-    # expected to be really quick so it's not expected to be a
-    # performance issue.
-    #
-    # create request and submit sizing tasks for unknown file_names
-    r_uuid = register_request.delay(openid, file_names).get()
-    logger.info('<= registered new request %s for openid=%s, file_names=%s' % \
-                (r_uuid, openid, file_names))
-    logger.debug('=> submitting sizing tasks for request id %s' % r_uuid)
-    schedule_submit_sizing_tasks.delay(r_uuid)
-    logger.debug('=> invoking scheduler')
-    schedule_tasks.delay()
+    r_uuid = uuid.uuid4().get_hex()
+    logger.debug('=> registering new request: uuid=%s, openid=%s, '
+                 'file_names=%s' % (r_uuid, openid, file_names))
+    register_request.apply_async((r_uuid, openid, file_names), task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 
 
@@ -258,15 +215,11 @@ def mars():
     logger.debug('file name: %s' % file_name)
 
     file_to_query = { file_name : mars_request_text }
-    logger.debug('=> registering new request: openid=%s, file_to_query=%s' % \
-                 (openid, file_to_query))
-    r_uuid = register_request_demo.delay(openid, file_to_query).get()
-    logger.info('<= registered new request %s for openid=%s, file_to_query=%s' % \
-                (r_uuid, openid, file_to_query))
-    logger.debug('=> submitting sizing tasks for request id %s' % r_uuid)
-    schedule_submit_sizing_tasks.delay(r_uuid)
-    logger.debug('=> invoking scheduler')
-    schedule_tasks.delay()
+    r_uuid = uuid.uuid4().get_hex()
+    logger.debug('=> registering new request: uuid=%s openid=%s, '
+                 'file_to_query=%s' % (r_uuid, openid, file_to_query))
+    register_request_demo.apply_async((r_uuid, openid, file_to_query),
+                                      task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 
 
@@ -282,7 +235,17 @@ def http_delete_request():
 def http_status_request(uuid):
     #assert request.headers['Content-Type'] == 'application/json', request
     #assert 'openid' in request.json, request.json
-    r = DownloadRequest.query.get_or_404(uuid)
+    logger.debug('received request uuid %s' % uuid)
+    r = DownloadRequest.query.get(uuid)
+    if not r:
+        future = tasks.cel.AsyncResult(uuid)
+        if future.status == 'PENDING':
+            raise HTTPNotfound('found no registered request with uuid %s' % uuid)
+        return jsonify(status='unregistered',
+                       progress='0.0',
+                       staged_files=[],
+                       offline_files=[]), 200, { 'location' : '/request/%s' % uuid }
+
     all_files = set(r.files)
     staged = set(f for f in all_files if f.state == 'online')
     offline = all_files - staged
@@ -295,6 +258,7 @@ def http_status_request(uuid):
                    staged_files=urls_staged_files,
                    offline_files=urls_offline_files), 200, { 'location' : '/request/%s' % r.uuid }
 
+
 @app.route('/request/<uuid>/status/<file_name>', methods=['GET'])
 def http_status_file(uuid, file_name):
     r = DownloadRequest.query.get_or_404(uuid)
@@ -303,7 +267,6 @@ def http_status_file(uuid, file_name):
     assert r in f.requests, (r, f)
     # TODO: if is done do redirect to staged? or provide link?
     return jsonify(stdout=f.staging_task.stdout(), stderr=f.staging_task.stderr()), 200
-
 
 
 # set time of cache expiry?
