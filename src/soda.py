@@ -11,7 +11,7 @@ from flask import Flask, jsonify, redirect, request, send_from_directory, \
     url_for
 from models import db, DownloadRequest, StagableFile
 from sqlalchemy.sql import func
-from tasks.scheduler import register_request_demo
+from tasks.scheduler import register_request
 
 
 app = Flask('soda')
@@ -119,8 +119,8 @@ def handle_api_internal_error(error):
     logger.error(str(error))
     return ( jsonify(message='Internal Error', payload=str(error)), 500 )
 
-@app.route('/request_demo', methods=['POST'])
-def http_create_request_demo():
+@app.route('/request', methods=['POST'])
+def http_create_request():
     logger.debug(request)
     r = select_request_input(request)
     openid = 'https://esg-dn1.nsc.liu.se/esgf-idp/openid/perl'
@@ -140,7 +140,7 @@ def http_create_request_demo():
     r_uuid = uuid.uuid4().get_hex()
     logger.debug('=> registering new request: uuid=%s openid=%s, '
                  'file_to_query=%s' % (r_uuid, openid, file_to_query))
-    register_request_demo.apply_async((r_uuid, openid, file_to_query),
+    register_request.apply_async((r_uuid, openid, file_to_query),
                                       task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 
@@ -191,7 +191,7 @@ def mars():
     r_uuid = uuid.uuid4().get_hex()
     logger.debug('=> registering new request: uuid=%s openid=%s, '
                  'file_to_query=%s' % (r_uuid, openid, file_to_query))
-    register_request_demo.apply_async((r_uuid, openid, file_to_query),
+    register_request.apply_async((r_uuid, openid, file_to_query),
                                       task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 

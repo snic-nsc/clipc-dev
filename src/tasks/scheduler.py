@@ -15,7 +15,7 @@ from util import util
 
 
 @celery.task(acks_late=True, ignore_results=True)
-def register_request_demo(uuid, openid, file_to_query):
+def register_request(uuid, openid, file_to_query):
     r = DownloadRequest(uuid, openid)
     logger.debug('created new request %s' % r)
     file_names = file_to_query.keys()

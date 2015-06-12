@@ -24,7 +24,7 @@ CELERY_QUEUES = (
                 kombu.Exchange('default'),
                 routing_key='schedule')    # == 1 worker
     )
-CELERY_ROUTES = { 'tasks.scheduler.register_request_demo' : { 'queue' : 'scheduler' },
+CELERY_ROUTES = { 'tasks.scheduler.register_request' : { 'queue' : 'scheduler' },
                   'tasks.scheduler.schedule_tasks' : { 'queue' : 'scheduler' },
                   'tasks.scheduler.schedule_join_staging_task' : { 'queue' : 'scheduler' },
                   'tasks.scheduler.schedule_mark_request_deletable' : { 'queue' : 'scheduler' } }
