@@ -215,19 +215,16 @@ def http_status_request(uuid):
         if future.status == 'PENDING':
             raise HTTPNotfound('found no registered request with uuid %s' % uuid)
         return jsonify(status='unregistered',
-                       progress='0.0',
                        staged_files=[],
                        offline_files=[]), 200, { 'location' : '/request/%s' % uuid }
 
     all_files = set(r.files)
     staged = set(f for f in all_files if f.state == 'online')
     offline = all_files - staged
-    progress = float(len(staged)) / len(r.files)
     is_done = len(offline) == 0
     urls_offline_files = [ url_for('http_status_file', uuid=r.uuid, file_name=x.name, _external=True) for x in offline ]
     urls_staged_files = [ url_for('http_serve_file', uuid=r.uuid, file_name=x.name, _external=True) for x in staged ]
     return jsonify(status=r.state,
-                   progress=progress,
                    staged_files=urls_staged_files,
                    offline_files=urls_offline_files), 200, { 'location' : '/request/%s' % r.uuid }
 
