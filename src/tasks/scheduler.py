@@ -206,14 +206,17 @@ def dispatched_requests(sf):
 # raises OSError if not existing for some reason:
 def update_size_if_different(sf):
     real_size = os.stat(sf.path_staged()).st_size
-    size_diff_ratio_allowed = 1
-    size_diff_ratio = abs(real_size - sf.size) / float(real_size)
-    if size_diff_ratio > size_diff_ratio_allowed:
+    size_ratio_allowed = 1
+    size_diff = sf.size - real_size
+    size_ratio = sf.size / float(real_size)
+    if size_ratio > size_ratio_allowed:
         logger.warning('reported file size %d and actual file size %d '
-                       'differs with more than %d%%' % \
-                       (sf.size, real_size, int(100 * size_diff_ratio)))
+                       'differs with more than %.1f%%' % \
+                       (sf.size, real_size, 100 * size_ratio - 100))
     if sf.size != real_size:
-        logger.debug('updating db file size %d -> %d' % (sf.size, real_size))
+        logger.info('updating db file size %d -> %d, (diff = %d bytes, '
+                    'ratio = %f)' % \
+                    (sf.size, real_size, size_diff, size_ratio))
         sf.size = real_size
 
 
