@@ -397,8 +397,6 @@ def schedule_tasks():
         reserved_files.all()
     assert used_space >= 0, used_space
     assert reserved_space >= 0, (reserved_files, reserved_space)
-    assert purgable_amount <= config.STAGE_SPACE, (purgable_amount, config.STAGE_SPACE,
-                                            reserved_space, available_space)
     logger.debug('reserved files: %s' % ', '.join(sf.name for sf in reserved_files))
     logger.debug('online files: %s' % ', '.join(sf.name for sf in online_files))
     logger.debug('purgable amount: %d bytes from %s' % \
