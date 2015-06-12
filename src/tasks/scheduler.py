@@ -414,8 +414,6 @@ def schedule_tasks():
 
     for rs in dispatchable_requests:
         try:
-            assert available_space >= 0, (config.STAGE_SPACE, reserved_space,
-                                          available_space)
             files_offline_not_being_staged = get_files_offline_not_being_staged(rs)
             logger.info('scheduling %s, available space %d bytes, offline files: %s' % \
                         (rs.uuid, available_space,
