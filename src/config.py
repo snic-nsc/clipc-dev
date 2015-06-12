@@ -26,8 +26,8 @@ CELERY_QUEUES = (
     )
 CELERY_ROUTES = { 'tasks.scheduler.register_request' : { 'queue' : 'scheduler' },
                   'tasks.scheduler.schedule_tasks' : { 'queue' : 'scheduler' },
-                  'tasks.scheduler.schedule_join_staging_task' : { 'queue' : 'scheduler' },
-                  'tasks.scheduler.schedule_mark_request_deletable' : { 'queue' : 'scheduler' } }
+                  'tasks.scheduler.join_staging_task' : { 'queue' : 'scheduler' },
+                  'tasks.scheduler.mark_request_deletable' : { 'queue' : 'scheduler' } }
 
 CELERY_DEFAULT_QUEUE = 'default'
 CELERY_DEFAULT_EXCHANGE_TYPE = 'direct'

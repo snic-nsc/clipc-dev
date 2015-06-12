@@ -10,7 +10,6 @@ from models import DownloadRequest, StagableFile, Task
 from sqlalchemy import or_
 from sqlalchemy.sql import func
 from tasks import logger
-from tasks.worker import estimate_size, stage_file
 from util import util
 
 
@@ -89,7 +88,7 @@ def submit_sizing_tasks(r_uuid):
     logger.info('=> submitting sizing tasks for request %s: %s' % \
                 (r_uuid, ', '.join(sf.name for sf in files_unknown_size)))
     for sf in files_unknown_size:
-        async_result = estimate_size.delay(sf.name)
+        async_result = tasks.worker.estimate_size.delay(sf.name)
         sf.sizing_task = Task(async_result.id)
         logger.debug('submitted: %s' % sf.sizing_task)
     tasks.session.commit()
@@ -126,7 +125,7 @@ def join_sizing_tasks(files):
 
 
 @celery.task(acks_late=True, ignore_results=True)
-def schedule_mark_request_deletable(r_uuid):
+def mark_request_deletable(r_uuid):
     try:
         r = tasks.session.query(DownloadRequest).get(r_uuid)
         logger.info('marking %s request %s as deletable' % (r.state, r_uuid))
@@ -147,8 +146,8 @@ def notify_user(r, msg=None):
 def finish_request(r):
     r.state = 'finished'
     notify_user(r, 'Request %s finished OK' % r)
-    schedule_mark_request_deletable.apply_async(args=[r.uuid],
-                                                countdown=config.REQUEST_PINNING_TIME)
+    mark_request_deletable.apply_async(args=[r.uuid],
+                                       countdown=config.REQUEST_PINNING_TIME)
 
 
 def staging_tasks_owned_by(r):
@@ -167,8 +166,8 @@ def fail_request(r, msg):
                      (t, r))
         t.cancel()
     notify_user(r, msg)
-    schedule_mark_request_deletable.apply_async(args=[r.uuid],
-                                                countdown=config.REQUEST_PINNING_TIME)
+    mark_request_deletable.apply_async(args=[r.uuid],
+                                       countdown=config.REQUEST_PINNING_TIME)
 
 
 # we don't have to consider state 'created' even if a file belonging
@@ -221,7 +220,7 @@ def update_size_if_different(sf):
 
 
 @celery.task(acks_late=True, ignore_results=True)
-def schedule_join_staging_task(task_id):
+def join_staging_task(task_id):
     # the task entry might not have been commited into the db yet
     while True:
         staging_task = tasks.session.query(Task).get(task_id)
@@ -487,14 +486,14 @@ def schedule_tasks():
                 for sf in files_offline_not_being_staged:
                     path_stdout = util.create_tempfile()
                     path_stderr = util.create_tempfile()
-                    # we'd like to chain the
-                    # schedule_join_staging_tasks here rather than
-                    # calling it from the stage_file task, but then we
-                    # cannot register the async result like this...
-                    async_result = stage_file.delay(sf.name,
-                                                    sf.path,
-                                                    path_stdout,
-                                                    path_stderr)
+                    # we'd like to chain the join_staging_tasks here
+                    # rather than calling it from the stage_file task,
+                    # but then we cannot register the async result
+                    # like this...
+                    async_result = tasks.worker.stage_file.delay(sf.name,
+                                                                 sf.path,
+                                                                 path_stdout,
+                                                                 path_stderr)
                     # note the critical window if worker dies here the
                     # task may have started but will not be registered
                     # with f (the same goes for submitting sizing
@@ -511,8 +510,8 @@ def schedule_tasks():
                                            path_stdout,
                                            path_stderr)
                     # IMPORTANT: commit immediately since stage_file
-                    # calls schedule_join_staging_tasks which looks up
-                    # the task in the db:
+                    # calls join_staging_tasks which looks up the task
+                    # in the db:
                     tasks.session.commit()
                     logger.info('=> staging task for %s is %s' % \
                                 (sf.name, sf.staging_task.uuid))

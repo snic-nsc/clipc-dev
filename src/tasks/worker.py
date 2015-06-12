@@ -5,7 +5,6 @@ import hashlib
 import os
 import re
 import tasks
-import tasks.scheduler
 import uuid
 from models import DownloadRequest, StagableFile, Task
 from tasks import logger
@@ -105,7 +104,7 @@ def stage_file(file_name, target_dir, path_out, path_err):
         logger.info('%s is staged online' % end_target)
     finally:
         logger.debug('=> invoking scheduler')
-        tasks.scheduler.schedule_join_staging_task.delay(stage_file.request.id)
+        tasks.scheduler.join_staging_task.delay(stage_file.request.id)
 
 
 @celery.task(acks_late=True)

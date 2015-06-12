@@ -5,13 +5,13 @@ import logging
 import os.path
 import simplejson as json
 import tasks
+import tasks.scheduler as scheduler
 import uuid
 from collections import OrderedDict
 from flask import Flask, jsonify, redirect, request, send_from_directory, \
     url_for
 from models import db, DownloadRequest, StagableFile
 from sqlalchemy.sql import func
-from tasks.scheduler import register_request
 
 
 app = Flask('soda')
@@ -140,8 +140,8 @@ def http_create_request():
     r_uuid = uuid.uuid4().get_hex()
     logger.debug('=> registering new request: uuid=%s openid=%s, '
                  'file_to_query=%s' % (r_uuid, openid, file_to_query))
-    register_request.apply_async((r_uuid, openid, file_to_query),
-                                      task_id=r_uuid)
+    scheduler.register_request.apply_async((r_uuid, openid, file_to_query),
+                                           task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 
 
@@ -191,8 +191,8 @@ def mars():
     r_uuid = uuid.uuid4().get_hex()
     logger.debug('=> registering new request: uuid=%s openid=%s, '
                  'file_to_query=%s' % (r_uuid, openid, file_to_query))
-    register_request.apply_async((r_uuid, openid, file_to_query),
-                                      task_id=r_uuid)
+    scheduler.register_request.apply_async((r_uuid, openid, file_to_query),
+                                           task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 
 
