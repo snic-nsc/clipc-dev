@@ -525,7 +525,8 @@ def schedule_tasks():
             num_tasks_deferred += 1
 
     logger.info('scheduling iteration completed, %d tasks dispatched, %d '
-                'tasks failed, %d tasks deferred. Consumed space %d bytes' % \
+                'tasks failed, %d tasks deferred. Consumed space %d bytes, '
+                'total space available %d bytes' % \
                 (num_tasks_dispatched, num_tasks_failed, num_tasks_deferred,
-                 consumed_space))
+                 consumed_space, available_space))
     tasks.session.commit()
