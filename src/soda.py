@@ -11,7 +11,7 @@ from flask import Flask, jsonify, redirect, request, send_from_directory, \
     url_for
 from models import db, DownloadRequest, StagableFile
 from sqlalchemy.sql import func
-from tasks.scheduler import register_request, register_request_demo
+from tasks.scheduler import register_request_demo
 
 
 app = Flask('soda')
@@ -142,33 +142,6 @@ def http_create_request_demo():
                  'file_to_query=%s' % (r_uuid, openid, file_to_query))
     register_request_demo.apply_async((r_uuid, openid, file_to_query),
                                       task_id=r_uuid)
-    return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
-
-
-# FIXME: requires authorization (used by the esg node)
-# TODO: maybe limit the amount of retries, timeout?
-@app.route('/request', methods=['POST'])
-def http_create_request():
-    logger.debug(request)
-    r = select_request_input(request)
-    openid = r.get('openid')
-    if not openid:
-        logger.warn('faulty request %s is missing attribute openid' % request)
-        raise HTTPBadRequest('missing attribute openid (string)')
-    assert type(openid) is str or type(openid) is unicode, openid
-    # TODO: allow for file sizes to be injected ( files would be a
-    # dict { file_name_1 { 'size' : size } }
-    file_names = r.get('files')
-    if not file_names:
-        logger.warn('faulty request %s is missing attribute files' % request)
-        raise HTTPBadRequest('missing attribute files (list of strings)',
-                             payload=str(request))
-    assert type(file_names) is list, file_names
-    assert all(type(x) is str or type(x) is unicode for x in file_names)
-    r_uuid = uuid.uuid4().get_hex()
-    logger.debug('=> registering new request: uuid=%s, openid=%s, '
-                 'file_names=%s' % (r_uuid, openid, file_names))
-    register_request.apply_async((r_uuid, openid, file_names), task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
 
 
