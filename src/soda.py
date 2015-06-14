@@ -138,8 +138,8 @@ def http_create_request():
 
     file_to_query = { name : ',\n'.join('%s = %s' % (k,v) for k,v in params.iteritems()) }
     r_uuid = uuid.uuid4().get_hex()
-    logger.debug('=> registering new request: uuid=%s openid=%s, '
-                 'file_to_query=%s' % (r_uuid, openid, file_to_query))
+    logger.info('=> registering new request: uuid=%s openid=%s, '
+                'file_to_query=%s' % (r_uuid, openid, file_to_query))
     scheduler.register_request.apply_async((r_uuid, openid, file_to_query),
                                            task_id=r_uuid)
     return jsonify(), 201, { 'location': '/request/%s' % r_uuid }
