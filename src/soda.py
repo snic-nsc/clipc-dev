@@ -178,7 +178,8 @@ def mars():
     if not params:
         raise HTTPBadRequest('missing params (dict of string) - any valid '
                              'MARS request keyword')
-    del params['TARGET']
+    if 'TARGET' in params:
+        del params['TARGET']
     logger.debug('request verb: %s' % verb)
     logger.debug('request params: %s' % params)
     # NOTE: there are many params that map to the same canonical MARS
