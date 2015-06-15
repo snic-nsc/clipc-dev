@@ -230,28 +230,35 @@ def http_status_request(uuid):
                    offline_files=urls_offline_files), 200, { 'location' : '/request/%s' % r.uuid }
 
 
+def get_file_from_request(uuid, file_name):
+    sf = StagableFile.query.\
+        join(StagableFile.requests).\
+        filter(StagableFile.name == file_name).\
+        filter(DownloadRequest.uuid == uuid).first()
+    if not sf:
+        raise HTTPNotfound('found no registered request with uuid %s '
+                           'containing file %s' % (uuid, file_name))
+    return sf
+
 @app.route('/request/<uuid>/status/<file_name>', methods=['GET'])
 def http_status_file(uuid, file_name):
-    r = DownloadRequest.query.get_or_404(uuid)
-    # FIXME: query r for files in r directly
-    f = StagableFile.query.get_or_404(file_name)
-    assert r in f.requests, (r, f)
-    # TODO: if is done do redirect to staged? or provide link?
-    return jsonify(stdout=f.staging_task.stdout(), stderr=f.staging_task.stderr()), 200
+    sf = get_file_from_request(uuid, file_name)
+    return jsonify(stdout=sf.staging_task.stdout(),
+                   stderr=sf.staging_task.stderr()), 200
 
 
 # set time of cache expiry?
 # use some reference counting scheme? but we cannot reliably detect
-# successful downloads? we'd also avoid derefence twice for the same
-# file and request
+# successful downloads?
 
 # possibly use http content disposition?
 @app.route('/request/<uuid>/staged/<file_name>', methods=['GET'])
 def http_serve_file(uuid, file_name):
-    f = StagableFile.query.get_or_404(file_name)
-    f.time_accessed = func.now()
+    sf = get_file_from_request(uuid, file_name)
+    sf.time_accessed = func.now()
     db.session.commit()
     return redirect(url_for('http_render_static', uuid=uuid, file_name=file_name))
+
 
 # FIXME: REMOVEME: should be served from apache or whatever will be
 #        running in production
@@ -262,10 +269,8 @@ def http_serve_file(uuid, file_name):
 # http://pythonhosted.org/xsendfile/
 @app.route('/static/<uuid>/staged/<file_name>', methods=['GET'])
 def http_render_static(uuid, file_name):
-    r = DownloadRequest.query.get_or_404(uuid)
-    f = StagableFile.query.get_or_404(file_name)
-    assert r in f.requests, (r, f)
-    return send_from_directory(f.path, f.name)
+    sf = get_file_from_request(uuid, file_name)
+    return send_from_directory(sf.path, sf.name)
 
 
 if __name__ == '__main__':
