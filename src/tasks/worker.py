@@ -67,7 +67,7 @@ def create_mars_request(verb, file_name, target=None):
 # FIXME: one notable failure case to handle is if unexpectedly
 # running out of staging space
 # FIXME: implement retry mechanism
-@celery.task(acks_late=True)
+@tasks.cel.task(acks_late=True)
 def stage_file(file_name, target_dir, path_out, path_err):
     logger.info('staging %s' % (os.path.join(target_dir, file_name)))
     try:
@@ -107,7 +107,7 @@ def stage_file(file_name, target_dir, path_out, path_err):
         tasks.scheduler.join_staging_task.delay(stage_file.request.id)
 
 
-@celery.task(acks_late=True)
+@tasks.cel.task(acks_late=True)
 def checksum_file(file_path):
     with open(file_path) as f:
         digest = hashlib.sha1()
@@ -119,7 +119,7 @@ def checksum_file(file_path):
         return digest.hexdigest()
 
 
-@celery.task(acks_late=True)
+@tasks.cel.task(acks_late=True)
 def estimate_size(file_name):
     logger.info('calling MARS to estimate size for %s' % file_name)
     size = None

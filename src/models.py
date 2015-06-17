@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import config
 import os
+import tasks
 import uuid
 from celery.result import AsyncResult
 from datetime import datetime

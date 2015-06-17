@@ -13,7 +13,7 @@ from tasks import logger
 from util import util
 
 
-@celery.task(acks_late=True, ignore_results=True)
+@tasks.cel.task(acks_late=True, ignore_results=True)
 def register_request(uuid, openid, file_to_query):
     r = DownloadRequest(uuid, openid)
     logger.debug('created new request %s' % r)
@@ -124,7 +124,7 @@ def join_sizing_tasks(files):
                 sf.sizing_task = None
 
 
-@celery.task(acks_late=True, ignore_results=True)
+@tasks.cel.task(acks_late=True, ignore_results=True)
 def mark_request_deletable(r_uuid):
     try:
         r = tasks.session.query(DownloadRequest).get(r_uuid)
@@ -219,7 +219,7 @@ def update_size_if_different(sf):
         sf.size = real_size
 
 
-@celery.task(acks_late=True, ignore_results=True)
+@tasks.cel.task(acks_late=True, ignore_results=True)
 def join_staging_task(task_id):
     # the task entry might not have been commited into the db yet
     while True:
@@ -352,7 +352,7 @@ def get_files_offline_being_staged(r):
 #
 # TODO: log error and resubmit itself at a later time on any exception
 #       that occurs or use celery retry mechanism
-@celery.task(acks_late=True, ignore_results=True)
+@tasks.cel.task(acks_late=True, ignore_results=True)
 def schedule_tasks():
     dispatchable_requests = get_dispatchable_requests()
     logger.info('running scheduler - %d dispatchable request(s): %s' % \
