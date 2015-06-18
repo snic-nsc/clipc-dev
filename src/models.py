@@ -3,7 +3,6 @@ import config
 import os
 import tasks
 import uuid
-from celery.result import AsyncResult
 from datetime import datetime
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import CheckConstraint, or_
@@ -113,7 +112,7 @@ class Task(db.Model):
             raise UnknownTask('Unknown Celery task id %s' % self.uuid)
 
     def future(self):
-        return AsyncResult(self.uuid)
+        return tasks.cel.AsyncResult(self.uuid)
 
     # we can't use terminate=True to kill the task since this may kill
     # the wrong task if the intended receipient finishes before being
