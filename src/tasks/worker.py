@@ -124,18 +124,17 @@ def estimate_size(file_name):
     mars_request = create_mars_request(verb='LIST', file_name=file_name)
     mars_request.params['OUTPUT'] = 'COST'
     logger.debug('mars_request: %s' % mars_request)
+    log_fn = logger.debug
 
     for rc,fd,l in util.exec_proc([ 'mars' ], logger, stdin=str(mars_request)):
-        logger.debug('rc = %s, fd = %s, l = %s' % (rc, fd, l.strip() if l else l))
-        if size is None and fd == 1:
+        if fd == 2:
+            log_fn = logger.warn
+        if l is not None:
+            log_fn(l.strip())
+        if size is None and fd == 1 and l is not None:
             m = re_size.match(l)
             if m:
-                logger.debug('got match %s' % m.group(1))
                 size = int(m.group(1).replace(",", ""))
-            else:
-                logger.debug('no match')
-        elif fd == 2:
-            logger.warn(l.strip())
 
     assert rc is not None and fd is None and l is None
     # don't trust size if mars returns non-zero
