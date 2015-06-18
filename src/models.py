@@ -89,21 +89,18 @@ class StagableFile(db.Model):
 # possibly use delete delete-orphan cascade?
 class Task(db.Model):
     uuid = db.Column(db.String(36), primary_key=True)
-    path_stdout = db.Column(db.Text)
-    path_stderr = db.Column(db.Text)
+    path_out = db.Column(db.Text)
 
-    def __init__(self, uuid, path_stdout=None, path_stderr=None):
+    def __init__(self, uuid, path_out=None):
         self.uuid = uuid
-        self.path_stdout = path_stdout
-        self.path_stderr = path_stderr
+        self.path_out = path_out
 
     def __repr__(self):
-        return '%s(uuid=%s, status=%s, path_stdout=%s, path_stderr=%s)' % \
+        return '%s(uuid=%s, status=%s, path_out=%s)' % \
             ( type(self).__name__,
               self.uuid,
               self.future().status,
-              self.path_stdout,
-              self.path_stderr )
+              self.path_out )
 
     def get(self):
         if self.is_registered():
@@ -136,10 +133,6 @@ class Task(db.Model):
     def is_failed(self):
         return self.future().ready() and self.future().status != 'SUCCESS'
 
-    def stdout(self):
-        with open(self.path_stdout) as f:
-            return f.read()
-
-    def stderr(self):
-        with open(self.path_stderr) as f:
+    def output(self):
+        with open(self.path_out) as f:
             return f.read()

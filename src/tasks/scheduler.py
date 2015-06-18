@@ -62,8 +62,7 @@ def purge_files(min_size, purgable_files):
             logger.debug('deleting %s' % sf)
             # raises OSError on any error except if not existing:
             if sf.staging_task:
-                util.unlink(sf.staging_task.path_stdout)
-                util.unlink(sf.staging_task.path_stderr)
+                util.unlink(sf.staging_task.path_out)
             is_deleted = util.unlink(sf.path_staged())
             if not is_deleted:
                 logger.warn('tried purging staged file %s - but it is already '
@@ -243,8 +242,7 @@ def join_staging_task(task_id):
             sf.state = 'online'
             logger.debug('deregistering %s from %s' % (sf.staging_task, sf))
             tasks.session.delete(sf.staging_task)
-            util.unlink(sf.staging_task.path_stdout)
-            util.unlink(sf.staging_task.path_stderr)
+            util.unlink(sf.staging_task.path_out)
             sf.staging_task = None
             assert sf.staging_task is None, sf
             logger.debug('db commit')
@@ -485,16 +483,14 @@ def schedule_tasks():
                             (rs.uuid,
                              ', '.join(sf.name for sf in files_offline_not_being_staged)))
                 for sf in files_offline_not_being_staged:
-                    path_stdout = util.create_tempfile()
-                    path_stderr = util.create_tempfile()
+                    path_out = util.create_tempfile()
                     # we'd like to chain the join_staging_tasks here
                     # rather than calling it from the stage_file task,
                     # but then we cannot register the async result
                     # like this...
                     async_result = tasks.worker.stage_file.delay(sf.name,
                                                                  sf.path,
-                                                                 path_stdout,
-                                                                 path_stderr)
+                                                                 path_out)
                     # note the critical window if worker dies here the
                     # task may have started but will not be registered
                     # with f (the same goes for submitting sizing
@@ -507,9 +503,7 @@ def schedule_tasks():
                     #
                     # (possibly create a celery task group consisting
                     # of staging -> checksumming):
-                    sf.staging_task = Task(async_result.id,
-                                           path_stdout,
-                                           path_stderr)
+                    sf.staging_task = Task(async_result.id, path_out)
                     # IMPORTANT: commit immediately since stage_file
                     # calls join_staging_tasks which looks up the task
                     # in the db:

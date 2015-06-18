@@ -68,7 +68,7 @@ def create_mars_request(verb, file_name, target=None):
 # running out of staging space
 # FIXME: implement retry mechanism
 @tasks.cel.task(acks_late=True)
-def stage_file(file_name, target_dir, path_out, path_err):
+def stage_file(file_name, target_dir, path_out):
     logger.info('staging %s' % (os.path.join(target_dir, file_name)))
     try:
         tmp_target = os.path.join(target_dir, uuid.uuid4().get_hex())
@@ -78,21 +78,18 @@ def stage_file(file_name, target_dir, path_out, path_err):
                                            target=tmp_target)
         logger.debug('mars_request: %s' % mars_request)
 
-        with open(path_out, 'w') as f_out:
-            with open(path_err, 'w') as f_err:
-                for rc,fd,l in util.exec_proc([ 'mars' ], logger, stdin=str(mars_request)):
-                    if fd is not None and l is not None:
-                        if fd == 1:
-                            logger.debug('fd=%s, l=%s' % (fd, l.strip() if l else l))
-                        else:
-                            logger.warning('fd=%s, l=%s' % (fd, l.strip() if l else l))
-                        f = f_out if fd == 1 else f_err
-                        f.write(l)
-                        f.flush()
-                for f in [f_out, f_err]:
+        with open(path_out, 'w') as f:
+            for rc,fd,l in util.exec_proc([ 'mars' ], logger, stdin=str(mars_request)):
+                if fd is not None and l is not None:
+                    if fd == 1:
+                        logger.debug('fd=%s, l=%s' % (fd, l.strip() if l else l))
+                    else:
+                        logger.warning('fd=%s, l=%s' % (fd, l.strip() if l else l))
+                    f.write(l)
                     f.flush()
-                    os.fdatasync(f.fileno())
-                    f.close()
+            f.flush()
+            os.fdatasync(f.fileno())
+            f.close()
         if rc != 0:
             logger.debug('removing temp file %s' % tmp_target)
             util.unlink(tmp_target) # FIXME: use try...finally
