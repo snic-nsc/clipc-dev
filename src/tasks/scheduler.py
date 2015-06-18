@@ -102,7 +102,8 @@ def join_sizing_tasks(files):
         for sf in files:
             try:
                 assert sf.size is None, sf
-                logger.debug('<= awaiting size estimation result for %s' % sf)
+                logger.debug('<= awaiting size estimation result for %s, '
+                             'task is %s' % (sf, sf.sizing_task))
                 if sf.sizing_task is None:
                     # this means it failed before and the task got
                     # unregistered from sf
