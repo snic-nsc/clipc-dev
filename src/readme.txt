@@ -62,8 +62,8 @@ STARTING UP
 ===========
 
 STAGEDIR=/tmp/soda python soda.py
-celery --no-color -c1 -n scheduler --app=tasks.cel -Q scheduler worker --loglevel=warning --statedb=scheduler.state -- celeryd.prefetch_multiplier=1
-celery --no-color -c1 -n worker1   --app=tasks.cel -Q default worker   --loglevel=warning --statedb=worker1.state   -- celeryd.prefetch_multiplier=1
+celery --no-color -c1 -n scheduler --app=tasks.cel -Q scheduler worker --loglevel=warning --statedb=scheduler.state
+celery --no-color -c1 -n worker1   --app=tasks.cel -Q default worker   --loglevel=warning --statedb=worker1.state
 
 where the scheduler queue must have one and only one worker to avoid
 errors from race conditions due to the db being modified concurrently

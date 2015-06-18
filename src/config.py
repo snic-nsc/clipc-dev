@@ -10,6 +10,7 @@ LOGFORMAT = '%(asctime)s %(levelname)-7s %(message)s'
 #CELERY_RESULT_ENGINE_OPTIONS = { 'echo': True }
 
 BROKER_URL = 'amqp://guest@localhost//'
+CELERYD_PREFETCH_MULTIPLIER = 1
 CELERY_RESULT_BACKEND = 'amqp://guest@localhost//'
 CELERYD_TASK_LOG_FORMAT = LOGFORMAT
 CELERYD_LOG_FORMAT = '%(asctime)s %(levelname)-7s <celery> %(message)s'
