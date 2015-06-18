@@ -91,6 +91,8 @@ def stage_file(file_name, target_dir, path_out):
             os.fdatasync(f.fileno())
             f.close()
         if rc != 0:
+            logger.error('failed to stage %s, rc = %d' % (file_name, rc))
+            logger.error('MARS request was: %s' % mars_request)
             logger.debug('removing temp file %s' % tmp_target)
             util.unlink(tmp_target) # FIXME: use try...finally
             raise TaskFailure('mars returned %d' % rc)
