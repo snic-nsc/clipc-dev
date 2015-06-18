@@ -16,7 +16,7 @@ CELERYD_TASK_LOG_FORMAT = LOGFORMAT
 CELERYD_LOG_FORMAT = '%(asctime)s %(levelname)-7s <celery> %(message)s'
 # explicitly accept pickle (which we need to be able to serialize
 # python exceptions etc.) to get rid of security warnings at startup):
-CELERY_ACCEPT_CONTENT = [ 'pickle', 'json', 'msgpack', 'yaml' ]
+CELERY_ACCEPT_CONTENT = [ 'pickle' ]
 CELERY_QUEUES = (
     kombu.Queue('default',
                 kombu.Exchange('default'),
