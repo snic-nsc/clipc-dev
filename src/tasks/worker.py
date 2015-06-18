@@ -140,9 +140,11 @@ def estimate_size(file_name):
     # don't trust size if mars returns non-zero
     if rc != 0 or size is None:
         logger.error('failed to compute size, rc = %d' % rc)
+        logger.error('MARS request was: %s' % mars_request)
         raise TaskFailure('failed to compute size, rc = %d' % rc)
     elif size == 0:
         logger.error('size is %d' % size)
+        logger.error('MARS request was: %s' % mars_request)
         raise TaskFailure('size is %d' % size)
 
     est_size = size * config.FILE_SIZE_WEIGHT + config.FILE_SIZE_EXTRA
