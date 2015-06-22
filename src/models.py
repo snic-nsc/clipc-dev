@@ -8,9 +8,6 @@ from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy import CheckConstraint, or_
 
 
-class UnknownTask(Exception): pass
-
-
 db = SQLAlchemy()
 
 # a many-to-many rel. see https://pythonhosted.org/Flask-SQLAlchemy/models.html
@@ -103,10 +100,7 @@ class Task(db.Model):
               self.path_out )
 
     def get(self):
-        if self.is_registered():
-            return self.future().get()
-        else:
-            raise UnknownTask('Unknown Celery task id %s' % self.uuid)
+        return self.future().get()
 
     def future(self):
         return tasks.cel.AsyncResult(self.uuid)
@@ -119,13 +113,6 @@ class Task(db.Model):
     # or we register the pid of the mars process and kill that (assuming we can deliver this to the same worker
     def cancel(self):
         self.future().revoke()
-
-    # in update_sent_state we set status to REGISTERED upon submission
-    # of a new task which makes it possible to differentiate between
-    # unknown tasks (PENDING) and tasks that have actually been
-    # submitted.
-    def is_registered(self):
-        return self.future().status != 'PENDING'
 
     def is_done(self):
         return self.future().ready()

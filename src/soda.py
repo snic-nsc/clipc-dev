@@ -213,9 +213,7 @@ def status_request(uuid):
     r = DownloadRequest.query.get(uuid)
     if not r:
         future = tasks.cel.AsyncResult(uuid)
-        if future.status == 'PENDING':
-            raise HTTPNotfound('found no registered request with uuid %s' % uuid)
-        return jsonify(status='unregistered',
+        return jsonify(status=future.status.lower(),
                        staged_files=[],
                        offline_files=[]), 200, { 'location' : '/request/%s' % uuid }
 

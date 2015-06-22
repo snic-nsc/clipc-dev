@@ -22,14 +22,6 @@ def remove_db_session(**kwargs):
     session.remove()
 
 
-# http://stackoverflow.com/questions/9824172/find-out-whether-celery-task-exists
-@celery.signals.after_task_publish.connect
-def update_sent_state(sender=None, body=None, **kwargs):
-    task = cel.tasks.get(sender)
-    backend = task.backend if task else cel.backend
-    backend.store_result(body['id'], None, "REGISTERED")
-
-
 cel = celery.Celery('soda',
                     include=['tasks.scheduler',
                              'tasks.worker'])
