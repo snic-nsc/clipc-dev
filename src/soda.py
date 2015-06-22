@@ -120,7 +120,7 @@ def handle_api_internal_error(error):
     return ( jsonify(message='Internal Error', payload=str(error)), 500 )
 
 @app.route('/request', methods=['POST'])
-def http_create_request():
+def create_request():
     logger.debug(request)
     r = select_request_input(request)
     openid = 'https://esg-dn1.nsc.liu.se/esgf-idp/openid/perl'
@@ -200,13 +200,13 @@ def mars():
 # this would allow for the wget script to signal that all files have
 # been downloaded, enabling space to be freed up as early as possible
 @app.route('/request', methods=['DELETE'])
-def http_delete_request():
+def delete_request():
     pass # TODO: only allow esg node or the request owner to delete a request
 
 
 # FIXME: only to be called by matching openid
 @app.route('/request/<uuid>', methods=['GET'])
-def http_status_request(uuid):
+def status_request(uuid):
     #assert request.headers['Content-Type'] == 'application/json', request
     #assert 'openid' in request.json, request.json
     logger.debug('received request uuid %s' % uuid)
@@ -223,8 +223,8 @@ def http_status_request(uuid):
     staged = set(f for f in all_files if f.state == 'online')
     offline = all_files - staged
     is_done = len(offline) == 0
-    urls_offline_files = [ url_for('http_status_file', uuid=r.uuid, file_name=x.name, _external=True) for x in offline ]
-    urls_staged_files = [ url_for('http_serve_file', uuid=r.uuid, file_name=x.name, _external=True) for x in staged ]
+    urls_offline_files = [ url_for('status_file', uuid=r.uuid, file_name=x.name, _external=True) for x in offline ]
+    urls_staged_files = [ url_for('serve_file', uuid=r.uuid, file_name=x.name, _external=True) for x in staged ]
     return jsonify(status=r.state,
                    staged_files=urls_staged_files,
                    offline_files=urls_offline_files), 200, { 'location' : '/request/%s' % r.uuid }
@@ -241,7 +241,7 @@ def get_file_from_request(uuid, file_name):
     return sf
 
 @app.route('/request/<uuid>/status/<file_name>', methods=['GET'])
-def http_status_file(uuid, file_name):
+def status_file(uuid, file_name):
     sf = get_file_from_request(uuid, file_name)
     if sf.staging_task:
         return jsonify(output=sf.staging_task.output()), 200
@@ -255,11 +255,11 @@ def http_status_file(uuid, file_name):
 
 # possibly use http content disposition?
 @app.route('/request/<uuid>/staged/<file_name>', methods=['GET'])
-def http_serve_file(uuid, file_name):
+def serve_file(uuid, file_name):
     sf = get_file_from_request(uuid, file_name)
     sf.time_accessed = func.now()
     db.session.commit()
-    return redirect(url_for('http_render_static', uuid=uuid, file_name=file_name))
+    return redirect(url_for('render_static', uuid=uuid, file_name=file_name))
 
 
 # FIXME: REMOVEME: should be served from apache or whatever will be
@@ -270,7 +270,7 @@ def http_serve_file(uuid, file_name):
 # http://www.yiiframework.com/wiki/129/x-sendfile-serve-large-static-files-efficiently-from-web-applications/
 # http://pythonhosted.org/xsendfile/
 @app.route('/static/<uuid>/staged/<file_name>', methods=['GET'])
-def http_render_static(uuid, file_name):
+def render_static(uuid, file_name):
     sf = get_file_from_request(uuid, file_name)
     return send_from_directory(sf.path, sf.name)
 
