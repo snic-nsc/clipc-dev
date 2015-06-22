@@ -69,9 +69,10 @@ def create_mars_request(verb, file_name, target=None):
 # FIXME: implement retry mechanism
 @tasks.cel.task(acks_late=True)
 def stage_file(file_name, target_dir, path_out):
-    logger.info('staging %s' % (os.path.join(target_dir, file_name)))
     try:
+        end_target = os.path.join(target_dir, file_name)
         tmp_target = os.path.join(target_dir, uuid.uuid4().get_hex())
+        logger.info('staging %s' % end_target)
         logger.debug('tmp_target: %s' % tmp_target)
         mars_request = create_mars_request(verb='RETRIEVE',
                                            file_name=file_name,
@@ -97,7 +98,6 @@ def stage_file(file_name, target_dir, path_out):
             util.unlink(tmp_target) # FIXME: use try...finally
             raise TaskFailure('mars returned %d' % rc)
 
-        end_target = os.path.join(target_dir, file_name)
         logger.debug('moving temp file %s -> %s' % (tmp_target, end_target))
         os.rename(tmp_target, end_target)
         logger.info('%s is staged online' % end_target)
