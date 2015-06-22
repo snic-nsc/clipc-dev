@@ -3,7 +3,7 @@ import os
 import select
 import subprocess
 import tempfile
-from signal import alarm, SIGALRM, signal
+from signal import alarm, SIGALRM, signal, siginterrupt
 
 class TimeoutException(Exception): pass
 
@@ -56,6 +56,7 @@ def raise_timeout_exception(signum, frame):
 
 def timed_wait(p, timeout):
     signal(SIGALRM, raise_timeout_exception)
+    siginterrupt(SIGALRM, False)
     alarm(timeout)
     rc = p.wait()
     alarm(0)
