@@ -243,7 +243,10 @@ def get_file_from_request(uuid, file_name):
 @app.route('/request/<uuid>/status/<file_name>', methods=['GET'])
 def http_status_file(uuid, file_name):
     sf = get_file_from_request(uuid, file_name)
-    return jsonify(output=sf.staging_task.output()), 200
+    if sf.staging_task:
+        return jsonify(output=sf.staging_task.output()), 200
+    else:
+        return jsonify(output='no task status information available for %s' % file_name), 200
 
 
 # set time of cache expiry?
