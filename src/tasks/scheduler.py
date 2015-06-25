@@ -13,34 +13,46 @@ from tasks import logger
 from util import util
 
 
-@tasks.cel.task(acks_late=True, ignore_results=True)
-def register_request(uuid, openid, file_to_query):
-    r = DownloadRequest(uuid, openid)
-    logger.debug('created new request %s' % r)
-    file_names = file_to_query.keys()
-    registered_files = tasks.session.query(StagableFile).\
-        filter(StagableFile.name.in_(file_names))
-    logger.debug('registered files: %s' % registered_files.all())
-    new_file_names = set(file_names) - set(x.name for x in registered_files)
-    logger.debug('new file names: %s' % new_file_names)
-    new_files = [ StagableFile(file_name, file_to_query[file_name]) for file_name in new_file_names ]
-    logger.debug('new files: %s' % new_files)
-    registered_files.update(
-        { StagableFile.request_count : StagableFile.request_count  + 1 },
-        synchronize_session=False)
-    r.files.extend(registered_files)
-    r.files.extend(new_files)
-    # This won't throw an integrityerror as long as this task is
-    # single threaded. If not, there's always a risk that one or more
-    # identical StagableFile may be inserted concurrently.
-    tasks.session.add(r)
-    tasks.session.commit()
-    logger.info('registered request %s openid=%s, file_names=%s '
-                '(unregistered=%s)' % \
-                (r.uuid, openid, file_names, new_file_names))
-    submit_sizing_tasks(r.uuid)
-    logger.debug('=> invoking scheduler')
-    schedule_tasks.delay()
+@tasks.cel.task(bind=True, acks_late=True, ignore_results=True)
+def register_request(self, uuid, openid, file_to_query):
+    try:
+        r = DownloadRequest(uuid, openid)
+        logger.debug('created new request %s' % r)
+        file_names = file_to_query.keys()
+        registered_files = tasks.session.query(StagableFile).\
+            filter(StagableFile.name.in_(file_names))
+        logger.debug('registered files: %s' % registered_files.all())
+        new_file_names = set(file_names) - set(x.name for x in registered_files)
+        logger.debug('new file names: %s' % new_file_names)
+        new_files = [ StagableFile(file_name, file_to_query[file_name]) for file_name in new_file_names ]
+        logger.debug('new files: %s' % new_files)
+        registered_files.update(
+            { StagableFile.request_count : StagableFile.request_count  + 1 },
+            synchronize_session=False)
+        r.files.extend(registered_files)
+        r.files.extend(new_files)
+        # This won't throw an integrityerror as long as this task is
+        # single threaded. If not, there's always a risk that one or more
+        # identical StagableFile may be inserted concurrently.
+        tasks.session.add(r)
+        tasks.session.commit()
+        logger.info('registered request %s openid=%s, file_names=%s '
+                    '(unregistered=%s)' % \
+                    (r.uuid, openid, file_names, new_file_names))
+        submit_sizing_tasks(r.uuid)
+        logger.debug('=> invoking scheduler')
+        schedule_tasks.delay()
+    except Exception, e:
+        # Note that some errors will never complete OK, for example if
+        # we try to register two or more requests with the same uuid
+        # (unlikely) - these cases are not handled and will need
+        # manual admin intervention (in this case removal of the
+        # redundant requests)
+        logger.error('register_request(uuid=%s, openid=%s, file_to_query=%s) '
+                     'unexpectedly failed (task id %s): %s, retrying in 60 s...' %
+                     (uuid, openid, file_to_query, register_request.request.id,
+                      str(e)))
+        raise self.retry(exc=e, countdown=60)
 
 
 # raises OSError if failing to delete a file except when it does not
