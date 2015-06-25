@@ -136,18 +136,22 @@ def join_sizing_tasks(files):
                 sf.sizing_task = None
 
 
-@tasks.cel.task(acks_late=True, ignore_results=True)
-def mark_request_deletable(r_uuid):
+@tasks.cel.task(bind=True, acks_late=True, ignore_results=True)
+def mark_request_deletable(self, r_uuid):
     try:
         r = tasks.session.query(DownloadRequest).get(r_uuid)
         logger.info('marking %s request %s as deletable' % (r.state, r_uuid))
         r.is_deletable = True
         tasks.session.commit()
-    finally:
         # since there might be pending requests that wait for space to
         # be freed up:
         logger.debug('=> invoking scheduler')
         schedule_tasks.delay()
+    except Exception, e:
+        logger.error('mark_request_deletable(uuid=%s) unexpectedly failed '
+                     '(task id %s): %s, retrying in 60 s...' %
+                     (r_uuid, mark_request_deletable.request.id, str(e)))
+        raise self.retry(exc=e, countdown=60)
 
 
 def notify_user(r, msg=None):
