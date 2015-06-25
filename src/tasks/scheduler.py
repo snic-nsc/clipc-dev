@@ -235,52 +235,68 @@ def update_size_if_different(sf):
         sf.size = real_size
 
 
-@tasks.cel.task(acks_late=True, ignore_results=True)
-def join_staging_task(task_id):
-    # the task entry might not have been commited into the db yet
+# the task entry might not have been commited into the db in some
+# circumstances:
+def get_task(task_id):
     while True:
-        staging_task = tasks.session.query(Task).get(task_id)
-        if staging_task:
-            break
+        task = tasks.session.query(Task).get(task_id)
+        if task:
+            return task
         time.sleep(0.1)
-    logger.debug('staging task for %s is: %s' % (task_id, staging_task))
-    # BUG: FIXME: why is this a list and not a file, we do use uselist=False
-    sf = staging_task.stagable_file[0]
-    logger.info('staging task %s completed, file is %s' % (task_id, sf.name))
 
-    try:
-        with allow_join_result():
-            logger.debug('getting staging result')
+
+def handle_staging_result(staging_task, sf):
+    with allow_join_result():
+        logger.debug('getting staging result')
+        try:
             staging_task.get() # returns None, but more importantly propagates any exception in the task
-            logger.debug('updating file size if necessary')
-            update_size_if_different(sf)
-            logger.info('%s is online' % sf.name)
-            sf.state = 'online'
+        except Exception, e:
+            logger.warning('%s failed: %s' % (staging_task, e))
+            # consider resubmitting the task a limited amount since it
+            # should only fail in rare cases (if so then do this by
+            # raising a RetryException or similar here)
             logger.debug('deregistering %s from %s' % (sf.staging_task, sf))
-            tasks.session.delete(sf.staging_task)
-            util.unlink(sf.staging_task.path_out)
+            tasks.session.delete(staging_task)
             sf.staging_task = None
             assert sf.staging_task is None, sf
             logger.debug('db commit')
-            tasks.session.commit() # verify that we really need this - but it's important that the query below includes r
-            for r in finishable_requests(sf):
-                logger.info('request %s finished' % r.uuid)
-                finish_request(r)
-    except Exception, e: # fixme: catch some, reraise others
-        logger.warning('%s failed: %s' % (staging_task, e))
-        # consider resubmitting the task a limited amount since it
-        # should only fail in rare cases
-        logger.debug('deregistering %s from %s' % (sf.staging_task, sf))
-        tasks.session.delete(staging_task)
-        sf.staging_task = None
-        assert sf.staging_task is None, sf
-        logger.debug('db commit')
+            tasks.session.commit()
+            for r in dispatched_requests(sf):
+                logger.info('request %s failed' % r.uuid)
+                fail_request(r, 'Staging of %s failed: %s' % (sf, str(e)))
+            return # we deliberately only handle exceptions from the staging task, any other exception will propagate
+
+    logger.debug('updating file size if necessary')
+    update_size_if_different(sf)
+    logger.info('%s is online' % sf.name)
+    sf.state = 'online'
+    logger.debug('deregistering %s from %s' % (sf.staging_task, sf))
+    tasks.session.delete(sf.staging_task)
+    util.unlink(sf.staging_task.path_out)
+    sf.staging_task = None
+    assert sf.staging_task is None, sf
+    logger.debug('db commit')
+    tasks.session.commit() # verify that we really need this - but it's important that the query below includes r
+    for r in finishable_requests(sf):
+        logger.info('request %s finished' % r.uuid)
+        finish_request(r)
+
+
+@tasks.cel.task(bind=True, acks_late=True, ignore_results=True)
+def join_staging_task(self, task_id):
+    try:
+        staging_task = get_task(task_id)
+        logger.debug('staging task for %s is: %s' % (task_id, staging_task))
+        # BUG: FIXME: why is this a list and not a file, we do use uselist=False
+        sf = staging_task.stagable_file[0]
+        logger.info('staging task %s completed, file is %s' % (task_id, sf.name))
+        handle_staging_result(staging_task, sf)
         tasks.session.commit()
-        for r in dispatched_requests(sf):
-            logger.info('request %s failed' % r.uuid)
-            fail_request(r, 'Staging of %s failed: %s' % (sf, str(e)))
-    finally:
-        tasks.session.commit()
+    except Exception, e:
+        logger.error('join_staging_task(task_id=%s) unexpectedly failed (task '
+                     'id %s): %s, retrying in 60 s...' %
+                     (task_id, join_staging_task.request.id, str(e)))
+        raise self.retry(exc=e, countdown=60)
 
 
 def get_online_files():
