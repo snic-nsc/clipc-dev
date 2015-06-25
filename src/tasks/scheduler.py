@@ -383,179 +383,185 @@ def get_files_offline_being_staged(r):
 #
 # TODO: log error and resubmit itself at a later time on any exception
 #       that occurs or use celery retry mechanism
-@tasks.cel.task(acks_late=True, ignore_results=True)
-def schedule_tasks():
-    dispatchable_requests = get_dispatchable_requests()
-    logger.info('running scheduler - %d dispatchable request(s): %s' % \
-                ( dispatchable_requests.count(),
-                  ', '.join(r.uuid for r in dispatchable_requests)))
-    reserved_files = get_reserved_files()
-    online_files = get_online_files()
-    reserved_space = sum(sf.size for sf in reserved_files)
-    used_space = sum(sf.size for sf in online_files)
-    available_space = config.STAGE_SPACE - used_space
-    purgable_files = get_purgable_files()
-    purgable_amount = sum(sf.size for sf in purgable_files)
+@tasks.cel.task(bind=True, acks_late=True, ignore_results=True)
+def schedule_tasks(self):
+    try:
+        dispatchable_requests = get_dispatchable_requests()
+        logger.info('running scheduler - %d dispatchable request(s): %s' % \
+                    ( dispatchable_requests.count(),
+                      ', '.join(r.uuid for r in dispatchable_requests)))
+        reserved_files = get_reserved_files()
+        online_files = get_online_files()
+        reserved_space = sum(sf.size for sf in reserved_files)
+        used_space = sum(sf.size for sf in online_files)
+        available_space = config.STAGE_SPACE - used_space
+        purgable_files = get_purgable_files()
+        purgable_amount = sum(sf.size for sf in purgable_files)
 
-    assert len(reserved_files.all()) == len(set(reserved_files)), \
-        reserved_files.all()
-    assert used_space >= 0, used_space
-    assert reserved_space >= 0, (reserved_files, reserved_space)
-    logger.debug('reserved files: %s' % ', '.join(sf.name for sf in reserved_files))
-    logger.debug('online files: %s' % ', '.join(sf.name for sf in online_files))
-    logger.debug('purgable amount: %d bytes from %s' % \
-                 (purgable_amount, ', '.join(sf.name for sf in purgable_files)))
-    logger.info('total staging space: %d bytes, used: %d bytes, reserved: %d '
-                'bytes. Max %d bytes available for new requests (%d bytes '
-                'purgable)' % \
-                (config.STAGE_SPACE, used_space, reserved_space,
-                 config.STAGE_SPACE - reserved_space, purgable_amount))
-    dispatch_tasks = True
-    num_tasks_dispatched = 0
-    num_tasks_failed = 0
-    num_tasks_deferred = 0
-    consumed_space = 0
+        assert len(reserved_files.all()) == len(set(reserved_files)), \
+            reserved_files.all()
+        assert used_space >= 0, used_space
+        assert reserved_space >= 0, (reserved_files, reserved_space)
+        logger.debug('reserved files: %s' % ', '.join(sf.name for sf in reserved_files))
+        logger.debug('online files: %s' % ', '.join(sf.name for sf in online_files))
+        logger.debug('purgable amount: %d bytes from %s' % \
+                     (purgable_amount, ', '.join(sf.name for sf in purgable_files)))
+        logger.info('total staging space: %d bytes, used: %d bytes, reserved: %d '
+                    'bytes. Max %d bytes available for new requests (%d bytes '
+                    'purgable)' % \
+                    (config.STAGE_SPACE, used_space, reserved_space,
+                     config.STAGE_SPACE - reserved_space, purgable_amount))
+        dispatch_tasks = True
+        num_tasks_dispatched = 0
+        num_tasks_failed = 0
+        num_tasks_deferred = 0
+        consumed_space = 0
 
-    for rs in dispatchable_requests:
-        try:
-            files_offline_not_being_staged = get_files_offline_not_being_staged(rs)
-            logger.info('scheduling %s, available space %d bytes, offline files: %s' % \
-                        (rs.uuid, available_space,
-                         ', '.join(sf.name for sf in files_offline_not_being_staged)))
-            logger.debug('offline files: %s' % \
-                         files_offline_not_being_staged.all())
-            logger.info('waiting for all size estimation tasks...')
-            join_sizing_tasks(files_offline_not_being_staged.\
-                                  filter(StagableFile.size == None))
-        except Exception, e:
-            # Note: all requests will keep on failing until this task has been resubmitted
-            logger.warning('sizing estimation of %s failed: %s, request -> '
-                           'failed' % (rs.uuid, e))
-            fail_request(rs, 'sizing estimation of %s failed: %s' % (rs.uuid, e))
-            num_tasks_failed += 1
-            continue
-
-        assert all(f.size is not None for f in files_offline_not_being_staged),\
-            files_offline_not_being_staged
-        offline_size = sum(f.size for f in files_offline_not_being_staged)
-        total_size = sum(f.size for f in rs.files)
-        logger.info('total request size: %d bytes, %d offline bytes' % \
-                    (total_size, offline_size))
-        # if staging fails any later request will we must make sure
-        # either to fail any later requests for that file
-
-        # fastforward all dispatchable zero cost requests and any
-        # requests that is impossible to fulfill:
-        #    created -> failed,
-        #    created -> dispatched,
-        #    created -> finished:
-        if total_size > config.STAGE_SPACE:
-            logger.info('fast forwarding %s -> failed - since there is no way '
-                         'it can be fulfilled (needs %d of %d bytes '
-                         'available)' % \
-                         (rs.uuid, total_size, config.STAGE_SPACE))
-            fail_request(rs, '%s can not be fulfilled (needs %d of %d bytes '
-                         'available)' % (rs.uuid, total_size, config.STAGE_SPACE))
-            num_tasks_failed += 1
-        elif not files_offline_not_being_staged.first():
-            if get_files_offline_being_staged(rs).first():
-                logger.info('fast forwarding %s -> dispatched - since it '
-                             'fully overlaps with staging tasks in '
-                             'progress' % rs.uuid)
-                rs.state = 'dispatched'
-                num_tasks_dispatched += 1
-            else:
-                # this should not fail unless db is being concurrently
-                # updated:
-                assert all(x.state == 'online' for x in rs.files), rs
-                logger.info('fast forwarding %s -> finished - since all '
-                            'files are online' % rs.uuid)
-                finish_request(rs)
-                num_tasks_dispatched += 1
-        elif dispatch_tasks:
-            if offline_size > available_space:
-                logger.info('%s requires more space than what is available '
-                            '(%d > %d), initiating cache purging' % \
-                            ( rs.uuid, offline_size, available_space ))
-                required_amount = offline_size - available_space
-                bytes_freed, requests_to_delete = purge_files(required_amount,
-                                                              purgable_files)
-                available_space += bytes_freed
-                logger.info('freed up %d/%d bytes (%d%%) - available space %d '
-                            'bytes' % \
-                            ( bytes_freed, required_amount,
-                              int(round(bytes_freed / float(offline_size) * 100, 3)),
-                              available_space ))
-                if requests_to_delete:
-                    assert all(x.is_deletable for x in requests_to_delete), requests_to_delete
-                    logger.info('deleting all deletable requests from db '
-                                'belonging to files that have been '
-                                'purged: %s' % \
-                                ', '.join(x.uuid for x in requests_to_delete))
-                    tasks.session.query(DownloadRequest).\
-                        filter(DownloadRequest.uuid.in_(x.uuid for x in requests_to_delete)).\
-                        delete(synchronize_session='fetch')
-                if offline_size > available_space:
-                    logger.info('%d bytes needed but only %d bytes available -'
-                                ' not considering any further requests for task'
-                                ' dispatching until the next request has '
-                                'finished/failed' % \
-                                (offline_size, available_space))
-                    dispatch_tasks = False
-                    # schedule_tasks will be triggered upon next
-                    # request failure or deletion after finish
-                    num_tasks_deferred += 1
-
-            # optimisation possibility: we can also dispatch as many
-            # tasks as there currently is room for even if the request
-            # can not be fully staged yet (but that would also
-            # complicate how we compute reserved/available_space)
-            if dispatch_tasks:
-                logger.info('staging offline files for request %s: %s' % \
-                            (rs.uuid,
+        for rs in dispatchable_requests:
+            try:
+                files_offline_not_being_staged = get_files_offline_not_being_staged(rs)
+                logger.info('scheduling %s, available space %d bytes, offline files: %s' % \
+                            (rs.uuid, available_space,
                              ', '.join(sf.name for sf in files_offline_not_being_staged)))
-                for sf in files_offline_not_being_staged:
-                    path_out = util.create_tempfile()
-                    # we'd like to chain the join_staging_tasks here
-                    # rather than calling it from the stage_file task,
-                    # but then we cannot register the async result
-                    # like this...
-                    async_result = tasks.worker.stage_file.delay(sf.name,
-                                                                 sf.path,
-                                                                 path_out)
-                    # note the critical window if worker dies here the
-                    # task may have started but will not be registered
-                    # with f (the same goes for submitting sizing
-                    # tasks). We choose risking more than one
-                    # identical staging task running (which is
-                    # harmless and has a low probability, though
-                    # wastes some resources) rather than risking
-                    # having the task registered with the file but not
-                    # actually running (which is harder to handle)
-                    #
-                    # (possibly create a celery task group consisting
-                    # of staging -> checksumming):
-                    sf.staging_task = Task(async_result.id, path_out)
-                    # IMPORTANT: commit immediately since stage_file
-                    # calls join_staging_tasks which looks up the task
-                    # in the db:
-                    tasks.session.commit()
-                    logger.info('=> staging task for %s is %s' % \
-                                (sf.name, sf.staging_task.uuid))
-                consumed_space += offline_size
-                available_space -= offline_size
-                rs.state = 'dispatched'
-                num_tasks_dispatched += 1
-        else:
-            logger.info('request %s is not eliglible for dispatching since it '
-                        'can not be fast forwarded and at least one higher '
-                        'priority request is still waiting to be dispatched' % \
-                        rs.uuid)
-            num_tasks_deferred += 1
+                logger.debug('offline files: %s' % \
+                             files_offline_not_being_staged.all())
+                logger.info('waiting for all size estimation tasks...')
+                join_sizing_tasks(files_offline_not_being_staged.\
+                                      filter(StagableFile.size == None))
+            except Exception, e:
+                # Note: all requests will keep on failing until this task has been resubmitted
+                logger.warning('sizing estimation of %s failed: %s, request -> '
+                               'failed' % (rs.uuid, e))
+                fail_request(rs, 'sizing estimation of %s failed: %s' % (rs.uuid, e))
+                num_tasks_failed += 1
+                continue
 
-    logger.info('scheduling iteration completed, %d tasks dispatched, %d '
-                'tasks failed, %d tasks deferred. Consumed space %d bytes, '
-                'total space available %d bytes' % \
-                (num_tasks_dispatched, num_tasks_failed, num_tasks_deferred,
-                 consumed_space, available_space))
-    tasks.session.commit()
+            assert all(f.size is not None for f in files_offline_not_being_staged),\
+                files_offline_not_being_staged
+            offline_size = sum(f.size for f in files_offline_not_being_staged)
+            total_size = sum(f.size for f in rs.files)
+            logger.info('total request size: %d bytes, %d offline bytes' % \
+                        (total_size, offline_size))
+            # if staging fails any later request will we must make sure
+            # either to fail any later requests for that file
+
+            # fastforward all dispatchable zero cost requests and any
+            # requests that is impossible to fulfill:
+            #    created -> failed,
+            #    created -> dispatched,
+            #    created -> finished:
+            if total_size > config.STAGE_SPACE:
+                logger.info('fast forwarding %s -> failed - since there is no way '
+                             'it can be fulfilled (needs %d of %d bytes '
+                             'available)' % \
+                             (rs.uuid, total_size, config.STAGE_SPACE))
+                fail_request(rs, '%s can not be fulfilled (needs %d of %d bytes '
+                             'available)' % (rs.uuid, total_size, config.STAGE_SPACE))
+                num_tasks_failed += 1
+            elif not files_offline_not_being_staged.first():
+                if get_files_offline_being_staged(rs).first():
+                    logger.info('fast forwarding %s -> dispatched - since it '
+                                 'fully overlaps with staging tasks in '
+                                 'progress' % rs.uuid)
+                    rs.state = 'dispatched'
+                    num_tasks_dispatched += 1
+                else:
+                    # this should not fail unless db is being concurrently
+                    # updated:
+                    assert all(x.state == 'online' for x in rs.files), rs
+                    logger.info('fast forwarding %s -> finished - since all '
+                                'files are online' % rs.uuid)
+                    finish_request(rs)
+                    num_tasks_dispatched += 1
+            elif dispatch_tasks:
+                if offline_size > available_space:
+                    logger.info('%s requires more space than what is available '
+                                '(%d > %d), initiating cache purging' % \
+                                ( rs.uuid, offline_size, available_space ))
+                    required_amount = offline_size - available_space
+                    bytes_freed, requests_to_delete = purge_files(required_amount,
+                                                                  purgable_files)
+                    available_space += bytes_freed
+                    logger.info('freed up %d/%d bytes (%d%%) - available space %d '
+                                'bytes' % \
+                                ( bytes_freed, required_amount,
+                                  int(round(bytes_freed / float(offline_size) * 100, 3)),
+                                  available_space ))
+                    if requests_to_delete:
+                        assert all(x.is_deletable for x in requests_to_delete), requests_to_delete
+                        logger.info('deleting all deletable requests from db '
+                                    'belonging to files that have been '
+                                    'purged: %s' % \
+                                    ', '.join(x.uuid for x in requests_to_delete))
+                        tasks.session.query(DownloadRequest).\
+                            filter(DownloadRequest.uuid.in_(x.uuid for x in requests_to_delete)).\
+                            delete(synchronize_session='fetch')
+                    if offline_size > available_space:
+                        logger.info('%d bytes needed but only %d bytes available -'
+                                    ' not considering any further requests for task'
+                                    ' dispatching until the next request has '
+                                    'finished/failed' % \
+                                    (offline_size, available_space))
+                        dispatch_tasks = False
+                        # schedule_tasks will be triggered upon next
+                        # request failure or deletion after finish
+                        num_tasks_deferred += 1
+
+                # optimisation possibility: we can also dispatch as many
+                # tasks as there currently is room for even if the request
+                # can not be fully staged yet (but that would also
+                # complicate how we compute reserved/available_space)
+                if dispatch_tasks:
+                    logger.info('staging offline files for request %s: %s' % \
+                                (rs.uuid,
+                                 ', '.join(sf.name for sf in files_offline_not_being_staged)))
+                    for sf in files_offline_not_being_staged:
+                        path_out = util.create_tempfile()
+                        # we'd like to chain the join_staging_tasks here
+                        # rather than calling it from the stage_file task,
+                        # but then we cannot register the async result
+                        # like this...
+                        async_result = tasks.worker.stage_file.delay(sf.name,
+                                                                     sf.path,
+                                                                     path_out)
+                        # note the critical window if worker dies here the
+                        # task may have started but will not be registered
+                        # with f (the same goes for submitting sizing
+                        # tasks). We choose risking more than one
+                        # identical staging task running (which is
+                        # harmless and has a low probability, though
+                        # wastes some resources) rather than risking
+                        # having the task registered with the file but not
+                        # actually running (which is harder to handle)
+                        #
+                        # (possibly create a celery task group consisting
+                        # of staging -> checksumming):
+                        sf.staging_task = Task(async_result.id, path_out)
+                        # IMPORTANT: commit immediately since stage_file
+                        # calls join_staging_tasks which looks up the task
+                        # in the db:
+                        tasks.session.commit()
+                        logger.info('=> staging task for %s is %s' % \
+                                    (sf.name, sf.staging_task.uuid))
+                    consumed_space += offline_size
+                    available_space -= offline_size
+                    rs.state = 'dispatched'
+                    num_tasks_dispatched += 1
+            else:
+                logger.info('request %s is not eliglible for dispatching since it '
+                            'can not be fast forwarded and at least one higher '
+                            'priority request is still waiting to be dispatched' % \
+                            rs.uuid)
+                num_tasks_deferred += 1
+
+        logger.info('scheduling iteration completed, %d tasks dispatched, %d '
+                    'tasks failed, %d tasks deferred. Consumed space %d bytes, '
+                    'total space available %d bytes' % \
+                    (num_tasks_dispatched, num_tasks_failed, num_tasks_deferred,
+                     consumed_space, available_space))
+        tasks.session.commit()
+    except Exception, e:
+        logger.error('schedule_tasks() unexpectedly failed (task id %s): %s, '
+                     'retrying in 60 s...' %
+                     (schedule_tasks.request.id, str(e)))
+        raise self.retry(exc=e, countdown=60)
