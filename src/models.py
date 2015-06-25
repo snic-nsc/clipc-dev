@@ -118,7 +118,8 @@ class Task(db.Model):
         return self.future().ready()
 
     def is_failed(self):
-        return self.future().ready() and self.future().status != 'SUCCESS'
+        future = self.future()
+        return future.ready() and future.status != 'SUCCESS'
 
     def output(self):
         with open(self.path_out) as f:
