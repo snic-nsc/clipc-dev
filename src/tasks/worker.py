@@ -67,8 +67,8 @@ def create_mars_request(verb, file_name, target=None):
 # FIXME: one notable failure case to handle is if unexpectedly
 # running out of staging space
 # FIXME: implement retry mechanism
-@tasks.cel.task(acks_late=True)
-def stage_file(file_name, target_dir, path_out):
+@tasks.cel.task(bind=True, acks_late=True)
+def stage_file(self, file_name, target_dir, path_out):
     try:
         end_target = os.path.join(target_dir, file_name)
         tmp_target = os.path.join(target_dir, uuid.uuid4().get_hex())
@@ -101,9 +101,15 @@ def stage_file(file_name, target_dir, path_out):
         logger.debug('moving temp file %s -> %s' % (tmp_target, end_target))
         os.rename(tmp_target, end_target)
         logger.info('%s is staged online' % end_target)
-    finally:
         logger.debug('=> invoking scheduler')
         tasks.scheduler.join_staging_task.delay(stage_file.request.id)
+    except Exception, e:
+        logger.error('stage_file(file_name=%s, target_dir=%s, path_out=%s) '
+                     'unexpectedly failed (task id %s): %s, retrying in '
+                     '60 s...' %
+                     (file_name, target_dir, path_out, stage_file.request.id,
+                      str(e)))
+        raise self.retry(exc=e, countdown=60)
 
 
 @tasks.cel.task(acks_late=True)
