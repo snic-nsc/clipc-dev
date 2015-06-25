@@ -8,7 +8,7 @@ import tasks
 import uuid
 from models import DownloadRequest, StagableFile, Task
 from tasks import logger
-from tasks.exceptions import TaskFailure
+from tasks.exceptions import TaskFailure, HardTaskFailure
 from util import util
 
 
@@ -112,53 +112,67 @@ def stage_file(self, file_name, target_dir, path_out):
         raise self.retry(exc=e, countdown=60)
 
 
-@tasks.cel.task(acks_late=True)
-def checksum_file(file_path):
-    with open(file_path) as f:
-        digest = hashlib.sha1()
-        while True:
-            bytes = f.read(8 * 1024)
-            if bytes == "":
-                break
-            digest.update(bytes)
-        return digest.hexdigest()
+@tasks.cel.task(bind=True, acks_late=True)
+def checksum_file(self, file_path):
+    try:
+        with open(file_path) as f:
+            digest = hashlib.sha1()
+            while True:
+                bytes = f.read(8 * 1024)
+                if bytes == "":
+                    break
+                digest.update(bytes)
+            return digest.hexdigest()
+    except Exception, e:
+        logger.error('checksum_file(file_path=%s) unexpectedly failed (task id '
+                     '%s): %s, retrying in 60 s...' %
+                     (file_path, checksum_file.request.id, str(e)))
+        raise self.retry(exc=e, countdown=60)
 
 
-@tasks.cel.task(acks_late=True)
-def estimate_size(file_name):
-    logger.info('calling MARS to estimate size for %s' % file_name)
-    size = None
-    re_size = re.compile(r'^size=([\d]+);$')
-    mars_request = create_mars_request(verb='LIST', file_name=file_name)
-    mars_request.params['OUTPUT'] = 'COST'
-    logger.debug('mars_request: %s' % mars_request)
-    log_fn = logger.debug
+@tasks.cel.task(bind=True, acks_late=True)
+def estimate_size(self, file_name):
+    try:
+        logger.info('calling MARS to estimate size for %s' % file_name)
+        size = None
+        re_size = re.compile(r'^size=([\d]+);$')
+        mars_request = create_mars_request(verb='LIST', file_name=file_name)
+        mars_request.params['OUTPUT'] = 'COST'
+        logger.debug('mars_request: %s' % mars_request)
+        log_fn = logger.debug
 
-    for rc,fd,l in util.exec_proc([ 'mars' ], logger, stdin=str(mars_request)):
-        if fd == 2:
-            log_fn = logger.warn
-        if l is not None:
-            log_fn(l.strip())
-        if size is None and fd == 1 and l is not None:
-            m = re_size.match(l)
-            if m:
-                size = int(m.group(1).replace(",", ""))
+        for rc,fd,l in util.exec_proc([ 'mars' ], logger, stdin=str(mars_request)):
+            if fd == 2:
+                log_fn = logger.warn
+            if l is not None:
+                log_fn(l.strip())
+            if size is None and fd == 1 and l is not None:
+                m = re_size.match(l)
+                if m:
+                    size = int(m.group(1).replace(",", ""))
 
-    assert rc is not None and fd is None and l is None
-    # don't trust size if mars returns non-zero
-    if rc != 0 or size is None:
-        logger.error('failed to compute size, rc = %d' % rc)
-        logger.error('MARS request was: %s' % mars_request)
-        raise TaskFailure('failed to compute size, rc = %d' % rc)
-    elif size == 0:
-        logger.error('size is %d' % size)
-        logger.error('MARS request was: %s' % mars_request)
-        raise TaskFailure('size is %d' % size)
+        assert rc is not None and fd is None and l is None
+        # don't trust size if mars returns non-zero
+        if rc != 0 or size is None:
+            logger.error('failed to compute size, rc = %d' % rc)
+            logger.error('MARS request was: %s' % mars_request)
+            raise TaskFailure('failed to compute size, rc = %d' % rc)
+        elif size == 0:
+            logger.error('size is %d' % size)
+            logger.error('MARS request was: %s' % mars_request)
+            raise HardTaskFailure('size is %d' % size)
 
-    est_size = size * config.FILE_SIZE_WEIGHT + config.FILE_SIZE_EXTRA
-    logger.debug('MARS reported size: %d bytes, after compensating: size * '
-                 '%d + %d = %d' % \
-                 (size, config.FILE_SIZE_WEIGHT, config.FILE_SIZE_EXTRA,
-                  est_size))
-    logger.info('size is %d' % est_size)
-    return est_size
+        est_size = size * config.FILE_SIZE_WEIGHT + config.FILE_SIZE_EXTRA
+        logger.debug('MARS reported size: %d bytes, after compensating: size * '
+                     '%d + %d = %d' % \
+                     (size, config.FILE_SIZE_WEIGHT, config.FILE_SIZE_EXTRA,
+                      est_size))
+        logger.info('size is %d' % est_size)
+        return est_size
+    except HardTaskFailure:
+        raise
+    except Exception, e:
+        logger.error('estimate_size(file_name=%s) unexpectedly failed (task id '
+                     '%s): %s, retrying in 60 s...' %
+                     (file_name, estimate_size.request.id, str(e)))
+        raise self.retry(exc=e, countdown=60)
