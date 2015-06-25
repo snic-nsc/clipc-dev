@@ -212,8 +212,15 @@ def status_request(uuid):
     logger.debug('received request uuid %s' % uuid)
     r = DownloadRequest.query.get(uuid)
     if not r:
-        future = tasks.cel.AsyncResult(uuid)
-        return jsonify(status=future.status.lower(),
+        status = tasks.cel.AsyncResult(uuid).status
+        if status == 'FAILED':
+            # the celery task failed, the user would need to perform
+            # the request again, FIXME: provide an error message for
+            # this
+            status = 'failed'
+        else:
+            status = 'registering'
+        return jsonify(status=status,
                        staged_files=[],
                        offline_files=[]), 200, { 'location' : '/request/%s' % uuid }
 
