@@ -123,6 +123,7 @@ def handle_api_internal_error(error):
 def create_request():
     logger.debug(request)
     r = select_request_input(request)
+    #auth stuff goes here: pchengi
     openid = 'https://esg-dn1.nsc.liu.se/esgf-idp/openid/perl'
 #    openid = r.get('openid')
     if not openid:
